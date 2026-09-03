@@ -3,29 +3,4427 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anshal: Your AI Friend</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Sheriya Study Zone</title>
+
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
+
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        .animate-fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        body {
+            min-height: 100vh;
+        }
+    </style>
 </head>
-<body>
-    <div class="chat-container">
-        <div class="chat-header">
-            Anshal: Your AI Friend
-        </div>
-        <div class="chat-messages" id="chat-messages">
-            <div class="message anshal-message">Hi there! I'm Anshal, your personal AI friend. How can I help you today?</div>
-        </div>
-        <div class="chat-input-area">
-            <input type="text" id="user-input" class="chat-input" placeholder="Type your message...">
-            <button id="send-button" class="send-button">
-                <span id="send-button-text">Send</span>
-                <div id="loading-spinner" class="loading-spinner hidden"></div>
+
+<body class="bg-slate-50 font-sans text-slate-800 pb-12">
+
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+
+import React, {
+    useState,
+    useEffect
+} from "https://esm.sh/react@18.2.0";
+
+import {
+    createRoot
+} from "https://esm.sh/react-dom@18.2.0/client";
+
+import {
+    BookOpen,
+    User,
+    Phone,
+    Lock,
+    GraduationCap,
+    LogOut,
+    CheckCircle,
+    ChevronRight,
+    ArrowLeft,
+    Check,
+    Clock,
+    Key,
+    PlayCircle,
+    FileText,
+    Calendar,
+    AlertCircle,
+    Trash2,
+    X,
+    Play,
+    Radio,
+    MessageSquare,
+    Send,
+    ExternalLink
+} from "https://esm.sh/lucide-react@0.294.0";
+
+import {
+    initializeApp
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+
+import {
+    getAuth,
+    signInAnonymously,
+    onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+import {
+    getFirestore,
+    collection,
+    addDoc,
+    onSnapshot,
+    serverTimestamp,
+    updateDoc,
+    doc,
+    getDoc,
+    setDoc,
+    deleteDoc,
+    query,
+    where,
+    getDocs
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+
+/* =========================================================
+   FIREBASE CONFIG
+========================================================= */
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCtPA243SRET6rzmHo0R8pyFT7j3ek3X50",
+    authDomain: "study-zone-b1d25.firebaseapp.com",
+    projectId: "study-zone-b1d25",
+    storageBucket: "study-zone-b1d25.firebasestorage.app",
+    messagingSenderId: "884046254600",
+    appId: "1:884046254600:web:28a6053ff41849a52037bd"
+};
+
+
+/* =========================================================
+   FIREBASE INITIALIZATION
+========================================================= */
+
+let app = null;
+let auth = null;
+let db = null;
+
+const appId = "study-zone-b1d25";
+
+try {
+
+    app = initializeApp(firebaseConfig);
+
+    auth = getAuth(app);
+
+    db = getFirestore(app);
+
+    console.log("Firebase initialized successfully");
+
+} catch (error) {
+
+    console.error("Firebase initialization failed:", error);
+
+}
+
+
+/* =========================================================
+   YOUTUBE ID
+========================================================= */
+
+const getYouTubeId = (url) => {
+
+    if (!url) return null;
+
+    const regExp =
+        /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([^"&?\/\s]{11})/i;
+
+    const match = url.match(regExp);
+
+    return match ? match[1] : null;
+};
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+const Toast = ({ message, type, onClose }) => {
+
+    if (!message) return null;
+
+    return (
+        <div
+            className={`fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full shadow-xl z-[999] flex items-center gap-2 animate-fade-in ${
+                type === "error"
+                    ? "bg-red-600 text-white"
+                    : "bg-emerald-600 text-white"
+            }`}
+        >
+
+            {type === "error" ? (
+                <AlertCircle className="h-5 w-5" />
+            ) : (
+                <CheckCircle className="h-5 w-5" />
+            )}
+
+            <span className="font-semibold text-sm">
+                {message}
+            </span>
+
+            <button
+                onClick={onClose}
+                className="ml-3 hover:opacity-75"
+            >
+                <X className="h-4 w-4" />
             </button>
+
         </div>
-    </div>
-    <div id="user-id-display" class="user-id-display"></div>
-    <script type="module" src="app.js"></script>
+    );
+};
+
+
+/* =========================================================
+   MAIN APP
+========================================================= */
+
+function App() {
+
+    const [user, setUser] = useState(null);
+
+    const [firebaseReady, setFirebaseReady] = useState(false);
+
+    const [currentView, setCurrentView] = useState("home");
+
+    const [loading, setLoading] = useState(true);
+
+    const [toast, setToast] = useState({
+        message: "",
+        type: ""
+    });
+
+
+    /* =====================================================
+       AUTH
+    ===================================================== */
+
+    const [authMode, setAuthMode] = useState("login");
+
+    const [mobile, setMobile] = useState("");
+
+    const [password, setPassword] = useState("");
+
+    const [otp, setOtp] = useState("");
+
+    const [showOtpField, setShowOtpField] = useState(false);
+
+    const [generatedOtp, setGeneratedOtp] = useState("");
+
+
+    const [studentDetails, setStudentDetails] = useState({
+        name: "",
+        email: "",
+        fatherName: "",
+        studentClass: "Class 10",
+        newPassword: ""
+    });
+
+    const [loggedInStudentMobile, setLoggedInStudentMobile] = useState(null);
+
+
+    /* =====================================================
+       TEACHER
+    ===================================================== */
+
+    const [teacherMobile, setTeacherMobile] = useState("");
+
+    const [teacherPassword, setTeacherPassword] = useState("");
+
+    const [teacherTab, setTeacherTab] = useState("courses");
+
+
+    /* =====================================================
+       FIRESTORE DATA
+    ===================================================== */
+
+    const [studentsList, setStudentsList] = useState([]);
+
+    const [courses, setCourses] = useState([]);
+
+    const [enrollments, setEnrollments] = useState([]);
+
+    const [courseContents, setCourseContents] = useState([]);
+
+    const [comments, setComments] = useState([]);
+
+
+    /* =====================================================
+       COURSE
+    ===================================================== */
+
+    const [newCourse, setNewCourse] = useState({
+        title: "",
+        thumbnail: "",
+        price: "",
+        upiId: "",
+        upiScanner: "",
+        contactNumber: ""
+    });
+
+
+    const [selectedCourse, setSelectedCourse] = useState(null);
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const [uploadingImage, setUploadingImage] = useState(false);
+
+
+    /* =====================================================
+       CONTENT
+    ===================================================== */
+
+    const [activeCourseId, setActiveCourseId] = useState(null);
+
+    const [contentTab, setContentTab] = useState("classes");
+
+    const [newContent, setNewContent] = useState({
+        type: "class",
+        subject: "",
+        title: "",
+        link: "",
+        date: "",
+        time: ""
+    });
+
+
+    /* =====================================================
+       VIDEO
+    ===================================================== */
+
+    const [activeVideo, setActiveVideo] = useState(null);
+
+    const [newComment, setNewComment] = useState("");
+
+
+    /* =====================================================
+       TOAST
+    ===================================================== */
+
+    const showToast = (message, type = "success") => {
+
+        setToast({
+            message,
+            type
+        });
+
+        setTimeout(() => {
+
+            setToast({
+                message: "",
+                type: ""
+            });
+
+        }, 5000);
+    };
+
+
+    /* =====================================================
+       FIREBASE AUTH
+    ===================================================== */
+
+    useEffect(() => {
+
+        if (!auth) {
+
+            setLoading(false);
+
+            showToast(
+                "Firebase initialize nahi hua. Config check karein.",
+                "error"
+            );
+
+            return;
+        }
+
+        let unsubscribe = () => {};
+
+        const startAuth = async () => {
+
+            try {
+
+                await signInAnonymously(auth);
+
+                console.log("Anonymous authentication successful");
+
+            } catch (error) {
+
+                console.error("Anonymous auth error:", error);
+
+                showToast(
+                    "Firebase Auth Error: " + error.message,
+                    "error"
+                );
+
+                setLoading(false);
+            }
+        };
+
+
+        unsubscribe = onAuthStateChanged(
+            auth,
+            (currentUser) => {
+
+                setUser(currentUser);
+
+                setFirebaseReady(!!currentUser);
+
+                setLoading(false);
+
+            }
+        );
+
+
+        startAuth();
+
+
+        return () => unsubscribe();
+
+    }, []);
+
+
+    /* =====================================================
+       FIRESTORE LISTENERS
+    ===================================================== */
+
+    useEffect(() => {
+
+        if (!user || !db) return;
+
+        const coursesRef = collection(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "courses"
+        );
+
+
+        const enrollmentsRef = collection(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "enrollments"
+        );
+
+
+        const studentsRef = collection(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "students"
+        );
+
+
+        const contentsRef = collection(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "course_contents"
+        );
+
+
+        const commentsRef = collection(
+            db,
+            "artifacts",
+            appId,
+            "public",
+            "data",
+            "comments"
+        );
+
+
+        const unsubCourses = onSnapshot(
+            coursesRef,
+            (snap) => {
+
+                setCourses(
+                    snap.docs.map(d => ({
+                        id: d.id,
+                        ...d.data()
+                    }))
+                );
+
+            },
+            (error) => {
+
+                console.error("Courses error:", error);
+
+                showToast(
+                    "Database error: " + error.message,
+                    "error"
+                );
+            }
+        );
+
+
+        const unsubEnrollments = onSnapshot(
+            enrollmentsRef,
+            (snap) => {
+
+                setEnrollments(
+                    snap.docs.map(d => ({
+                        id: d.id,
+                        ...d.data()
+                    }))
+                );
+
+            },
+            (error) => {
+
+                console.error("Enrollment error:", error);
+
+            }
+        );
+
+
+        const unsubStudents = onSnapshot(
+            studentsRef,
+            (snap) => {
+
+                const data =
+                    snap.docs.map(d => ({
+                        id: d.id,
+                        ...d.data()
+                    }));
+
+                setStudentsList(data);
+
+                if (loggedInStudentMobile) {
+
+                    const student = data.find(
+                        s => s.id === loggedInStudentMobile
+                    );
+
+                    if (student) {
+
+                        setStudentDetails(student);
+
+                    }
+
+                }
+
+            },
+            (error) => {
+
+                console.error("Students error:", error);
+
+            }
+        );
+
+
+        const unsubContents = onSnapshot(
+            contentsRef,
+            (snap) => {
+
+                setCourseContents(
+                    snap.docs.map(d => ({
+                        id: d.id,
+                        ...d.data()
+                    }))
+                );
+
+            },
+            (error) => {
+
+                console.error("Content error:", error);
+
+            }
+        );
+
+
+        const unsubComments = onSnapshot(
+            commentsRef,
+            (snap) => {
+
+                const data =
+                    snap.docs.map(d => ({
+                        id: d.id,
+                        ...d.data()
+                    }));
+
+
+                data.sort(
+                    (a, b) =>
+                        (a.timestamp?.toMillis?.() || 0) -
+                        (b.timestamp?.toMillis?.() || 0)
+                );
+
+
+                setComments(data);
+
+            },
+            (error) => {
+
+                console.error("Comments error:", error);
+
+            }
+        );
+
+
+        return () => {
+
+            unsubCourses();
+
+            unsubEnrollments();
+
+            unsubStudents();
+
+            unsubContents();
+
+            unsubComments();
+
+        };
+
+    }, [user, loggedInStudentMobile]);
+
+
+    /* =====================================================
+       IMAGE UPLOAD
+    ===================================================== */
+
+    const handleImageUpload = (e, fieldName) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+
+        if (!file.type.startsWith("image/")) {
+
+            showToast(
+                "Sirf image file upload karein.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        setUploadingImage(true);
+
+
+        const reader = new FileReader();
+
+
+        reader.onload = (event) => {
+
+            const img = new Image();
+
+
+            img.onload = () => {
+
+                const maxWidth = 800;
+
+                const scale =
+                    Math.min(1, maxWidth / img.width);
+
+
+                const canvas =
+                    document.createElement("canvas");
+
+
+                canvas.width =
+                    Math.round(img.width * scale);
+
+
+                canvas.height =
+                    Math.round(img.height * scale);
+
+
+                const ctx =
+                    canvas.getContext("2d");
+
+
+                ctx.drawImage(
+                    img,
+                    0,
+                    0,
+                    canvas.width,
+                    canvas.height
+                );
+
+
+                const data =
+                    canvas.toDataURL(
+                        "image/jpeg",
+                        0.65
+                    );
+
+
+                setNewCourse(prev => ({
+                    ...prev,
+                    [fieldName]: data
+                }));
+
+
+                setUploadingImage(false);
+
+            };
+
+
+            img.onerror = () => {
+
+                setUploadingImage(false);
+
+                showToast(
+                    "Image process nahi ho saki.",
+                    "error"
+                );
+
+            };
+
+
+            img.src = event.target.result;
+
+        };
+
+
+        reader.onerror = () => {
+
+            setUploadingImage(false);
+
+            showToast(
+                "Image read nahi ho saki.",
+                "error"
+            );
+
+        };
+
+
+        reader.readAsDataURL(file);
+
+    };
+
+
+    /* =====================================================
+       STUDENT LOGIN
+    ===================================================== */
+
+    const handleStudentLogin = async (e) => {
+
+        e.preventDefault();
+
+
+        if (!db) {
+
+            showToast(
+                "Database offline! Firebase configuration check karein.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!/^\d{10}$/.test(mobile)) {
+
+            showToast(
+                "10 digit mobile number enter karein.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        setIsSubmitting(true);
+
+
+        try {
+
+            const authDoc =
+                await getDoc(
+                    doc(
+                        db,
+                        "artifacts",
+                        appId,
+                        "public",
+                        "data",
+                        "students_auth",
+                        mobile
+                    )
+                );
+
+
+            if (
+                authDoc.exists() &&
+                authDoc.data().password === password
+            ) {
+
+                setLoggedInStudentMobile(mobile);
+
+                const studentDoc =
+                    await getDoc(
+                        doc(
+                            db,
+                            "artifacts",
+                            appId,
+                            "public",
+                            "data",
+                            "students",
+                            mobile
+                        )
+                    );
+
+
+                if (studentDoc.exists()) {
+
+                    setStudentDetails(
+                        studentDoc.data()
+                    );
+
+                }
+
+
+                setCurrentView(
+                    "student_dashboard"
+                );
+
+
+                showToast(
+                    "Login Successful!"
+                );
+
+            } else {
+
+                showToast(
+                    "Mobile number ya password galat hai.",
+                    "error"
+                );
+
+            }
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Login error: " + err.message,
+                "error"
+            );
+
+        }
+
+
+        setIsSubmitting(false);
+
+    };
+
+
+    /* =====================================================
+       SEND OTP
+    ===================================================== */
+
+    const handleSendOtp = async (e) => {
+
+        e.preventDefault();
+
+
+        if (!/^\d{10}$/.test(mobile)) {
+
+            showToast(
+                "Valid 10 digit mobile number enter karein.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        const otpCode =
+            Math.floor(
+                1000 +
+                Math.random() * 9000
+            ).toString();
+
+
+        setGeneratedOtp(otpCode);
+
+        setShowOtpField(true);
+
+
+        showToast(
+            "Demo OTP generate ho gaya!"
+        );
+
+    };
+
+
+    /* =====================================================
+       VERIFY OTP
+    ===================================================== */
+
+    const handleVerifyOtp = (e) => {
+
+        e.preventDefault();
+
+
+        if (
+            otp === generatedOtp ||
+            otp === "1234"
+        ) {
+
+            setCurrentView(
+                "student_details"
+            );
+
+            showToast(
+                "OTP verified!"
+            );
+
+        } else {
+
+            showToast(
+                "Galat OTP!",
+                "error"
+            );
+
+        }
+
+    };
+
+
+    /* =====================================================
+       SAVE STUDENT
+    ===================================================== */
+
+    const handleSaveStudentDetails = async (e) => {
+
+        e.preventDefault();
+
+
+        if (!db) {
+
+            showToast(
+                "Database offline!",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!/^\d{10}$/.test(mobile)) {
+
+            showToast(
+                "Valid mobile number required.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        setIsSubmitting(true);
+
+
+        try {
+
+            await setDoc(
+                doc(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "students_auth",
+                    mobile
+                ),
+                {
+                    password:
+                        studentDetails.newPassword,
+
+                    mobile,
+
+                    timestamp:
+                        serverTimestamp()
+                }
+            );
+
+
+            await setDoc(
+                doc(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "students",
+                    mobile
+                ),
+                {
+                    mobile,
+
+                    name:
+                        studentDetails.name,
+
+                    email:
+                        studentDetails.email,
+
+                    fatherName:
+                        studentDetails.fatherName,
+
+                    studentClass:
+                        studentDetails.studentClass,
+
+                    timestamp:
+                        serverTimestamp(),
+
+                    userId:
+                        user?.uid || "anonymous"
+                }
+            );
+
+
+            setLoggedInStudentMobile(
+                mobile
+            );
+
+
+            setStudentDetails(prev => ({
+                ...prev,
+                newPassword: ""
+            }));
+
+
+            setCurrentView(
+                "student_dashboard"
+            );
+
+
+            showToast(
+                "Account Create Ho Gaya!"
+            );
+
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Registration failed: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+
+        setIsSubmitting(false);
+
+    };
+
+
+    /* =====================================================
+       TEACHER LOGIN
+    ===================================================== */
+
+    const handleTeacherLogin = (e) => {
+
+        e.preventDefault();
+
+
+        /*
+          DEMO TEACHER LOGIN
+
+          Mobile:
+          9876543210
+
+          Password:
+          Sheriya@123
+        */
+
+
+        if (
+            teacherMobile === "9876543210" &&
+            teacherPassword === "Sheriya@123"
+        ) {
+
+            setCurrentView(
+                "teacher_dashboard"
+            );
+
+            showToast(
+                "Welcome Teacher!"
+            );
+
+        } else {
+
+            showToast(
+                "Credentials galat hain!",
+                "error"
+            );
+
+        }
+
+    };
+
+
+    /* =====================================================
+       LOGOUT
+    ===================================================== */
+
+    const logout = () => {
+
+        setCurrentView("home");
+
+        setMobile("");
+
+        setOtp("");
+
+        setPassword("");
+
+        setShowOtpField(false);
+
+        setGeneratedOtp("");
+
+        setTeacherMobile("");
+
+        setTeacherPassword("");
+
+        setLoggedInStudentMobile(null);
+
+        setActiveCourseId(null);
+
+        setActiveVideo(null);
+
+        setSelectedCourse(null);
+
+        showToast(
+            "Logout successful"
+        );
+
+    };
+
+
+    /* =====================================================
+       CREATE COURSE
+    ===================================================== */
+
+    const handleCreateCourse = async (e) => {
+
+        e.preventDefault();
+
+
+        if (!db) {
+
+            showToast(
+                "Database offline!",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (
+            !newCourse.thumbnail ||
+            !newCourse.upiScanner
+        ) {
+
+            showToast(
+                "Course Photo aur UPI QR upload karna zaroori hai!",
+                "error"
+            );
+
+            return;
+        }
+
+
+        setIsSubmitting(true);
+
+
+        try {
+
+            await addDoc(
+                collection(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "courses"
+                ),
+                {
+                    title:
+                        newCourse.title.trim(),
+
+                    price:
+                        newCourse.price,
+
+                    thumbnail:
+                        newCourse.thumbnail,
+
+                    upiId:
+                        newCourse.upiId.trim(),
+
+                    upiScanner:
+                        newCourse.upiScanner,
+
+                    contactNumber:
+                        newCourse.contactNumber,
+
+                    timestamp:
+                        serverTimestamp()
+                }
+            );
+
+
+            setNewCourse({
+                title: "",
+                thumbnail: "",
+                price: "",
+                upiId: "",
+                upiScanner: "",
+                contactNumber: ""
+            });
+
+
+            showToast(
+                "Naya course successfully publish ho gaya!"
+            );
+
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Publish failed: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+
+        setIsSubmitting(false);
+
+    };
+
+
+    /* =====================================================
+       ADD CONTENT
+    ===================================================== */
+
+    const handleAddContent = async (e) => {
+
+        e.preventDefault();
+
+
+        if (!db) {
+
+            showToast(
+                "Database offline!",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (!activeCourseId) {
+
+            showToast(
+                "Course select karein.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        setIsSubmitting(true);
+
+
+        try {
+
+            await addDoc(
+                collection(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "course_contents"
+                ),
+                {
+                    courseId:
+                        activeCourseId,
+
+                    type:
+                        newContent.type,
+
+                    subject:
+                        newContent.subject.trim(),
+
+                    title:
+                        newContent.title.trim(),
+
+                    link:
+                        newContent.link.trim(),
+
+                    date:
+                        newContent.date,
+
+                    time:
+                        newContent.time,
+
+                    timestamp:
+                        serverTimestamp()
+                }
+            );
+
+
+            setNewContent({
+                type: "class",
+                subject: "",
+                title: "",
+                link: "",
+                date: "",
+                time: ""
+            });
+
+
+            showToast(
+                "Content upload ho gaya!"
+            );
+
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Error uploading: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+
+        setIsSubmitting(false);
+
+    };
+
+
+    /* =====================================================
+       DELETE CONTENT
+    ===================================================== */
+
+    const handleDeleteContent = async (
+        contentId
+    ) => {
+
+        if (!db) return;
+
+
+        try {
+
+            await deleteDoc(
+                doc(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "course_contents",
+                    contentId
+                )
+            );
+
+
+            showToast(
+                "Content delete ho gaya."
+            );
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Delete failed: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+    };
+
+
+    /* =====================================================
+       DELETE COMMENT
+    ===================================================== */
+
+    const handleDeleteComment = async (
+        commentId
+    ) => {
+
+        if (!db) return;
+
+
+        try {
+
+            await deleteDoc(
+                doc(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "comments",
+                    commentId
+                )
+            );
+
+
+            showToast(
+                "Comment delete ho gaya."
+            );
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Comment delete failed.",
+                "error"
+            );
+
+        }
+
+    };
+
+
+    /* =====================================================
+       UNLOCK COURSE
+    ===================================================== */
+
+    const handleUnlockCourse = async (
+        enrollmentId
+    ) => {
+
+        if (!db) return;
+
+
+        try {
+
+            await updateDoc(
+                doc(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "enrollments",
+                    enrollmentId
+                ),
+                {
+                    status: "approved",
+                    approvedAt:
+                        serverTimestamp()
+                }
+            );
+
+
+            showToast(
+                "Course Unlock Ho Gaya!"
+            );
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Unlock fail: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+    };
+
+
+    /* =====================================================
+       PAYMENT CONFIRM
+    ===================================================== */
+
+    const handlePaymentConfirm = async () => {
+
+        if (!db) {
+
+            showToast(
+                "Database offline!",
+                "error"
+            );
+
+            return;
+        }
+
+
+        if (
+            !selectedCourse ||
+            !loggedInStudentMobile
+        ) {
+
+            showToast(
+                "Student/course information missing.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        setIsSubmitting(true);
+
+
+        try {
+
+            /*
+              Duplicate enrollment check
+            */
+
+            const existingQuery = query(
+                collection(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "enrollments"
+                ),
+                where(
+                    "courseId",
+                    "==",
+                    selectedCourse.id
+                ),
+                where(
+                    "studentId",
+                    "==",
+                    loggedInStudentMobile
+                )
+            );
+
+
+            const existing =
+                await getDocs(existingQuery);
+
+
+            if (!existing.empty) {
+
+                showToast(
+                    "Is course ke liye request already bheji ja chuki hai.",
+                    "error"
+                );
+
+                setIsSubmitting(false);
+
+                return;
+            }
+
+
+            await addDoc(
+                collection(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "enrollments"
+                ),
+                {
+                    courseId:
+                        selectedCourse.id,
+
+                    courseName:
+                        selectedCourse.title,
+
+                    studentId:
+                        loggedInStudentMobile,
+
+                    studentName:
+                        studentDetails.name,
+
+                    studentMobile:
+                        loggedInStudentMobile,
+
+                    status:
+                        "pending",
+
+                    timestamp:
+                        serverTimestamp()
+                }
+            );
+
+
+            setCurrentView(
+                "student_dashboard"
+            );
+
+
+            showToast(
+                "Payment request bhej di gayi hai!"
+            );
+
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Payment request error: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+
+        setIsSubmitting(false);
+
+    };
+
+
+    /* =====================================================
+       POST COMMENT
+    ===================================================== */
+
+    const handlePostComment = async (e) => {
+
+        e.preventDefault();
+
+
+        if (
+            !db ||
+            !newComment.trim() ||
+            !activeVideo ||
+            !activeCourseId
+        ) return;
+
+
+        try {
+
+            await addDoc(
+                collection(
+                    db,
+                    "artifacts",
+                    appId,
+                    "public",
+                    "data",
+                    "comments"
+                ),
+                {
+                    contentId:
+                        activeVideo.id,
+
+                    courseId:
+                        activeCourseId,
+
+                    studentId:
+                        loggedInStudentMobile,
+
+                    studentName:
+                        studentDetails.name ||
+                        "Student",
+
+                    text:
+                        newComment.trim(),
+
+                    timestamp:
+                        serverTimestamp()
+                }
+            );
+
+
+            setNewComment("");
+
+        } catch (err) {
+
+            console.error(err);
+
+            showToast(
+                "Comment failed: " +
+                err.message,
+                "error"
+            );
+
+        }
+
+    };
+
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    const getEnrollmentStatus = (
+        courseId
+    ) => {
+
+        return (
+            enrollments.find(
+                e =>
+                    e.courseId === courseId &&
+                    e.studentId ===
+                        loggedInStudentMobile
+            )?.status || null
+        );
+
+    };
+
+
+    const filteredContents =
+        courseContents.filter(
+            c =>
+                c.courseId ===
+                activeCourseId
+        );
+
+
+    const activeVideoComments =
+        comments.filter(
+            c =>
+                c.contentId ===
+                activeVideo?.id
+        );
+
+
+    const courseComments =
+        comments.filter(
+            c =>
+                c.courseId ===
+                activeCourseId
+        );
+
+
+    /* =====================================================
+       STUDENT VIDEO PLAYER
+    ===================================================== */
+
+    const renderStudentVideoPlayer = () => {
+
+        if (!activeVideo) return null;
+
+
+        const ytId =
+            getYouTubeId(
+                activeVideo.link
+            );
+
+
+        return (
+
+            <div className="max-w-6xl mx-auto animate-fade-in">
+
+                <button
+                    onClick={() => {
+
+                        setActiveVideo(null);
+
+                        setCurrentView(
+                            "student_course_view"
+                        );
+
+                    }}
+
+                    className="flex items-center text-slate-500 hover:text-indigo-600 mb-4 text-sm font-bold bg-white px-4 py-2 rounded-lg shadow-sm border"
+                >
+
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+
+                    Wapas Course Me
+
+                </button>
+
+
+                <div className="grid lg:grid-cols-3 gap-6">
+
+                    <div className="lg:col-span-2 space-y-4">
+
+                        <div
+                            className="bg-black rounded-2xl overflow-hidden shadow-xl border border-slate-800 relative w-full"
+                            style={{
+                                paddingBottom:
+                                    "56.25%"
+                            }}
+                        >
+
+                            {ytId ? (
+
+                                <iframe
+                                    src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
+                                    className="absolute top-0 left-0 w-full h-full"
+                                    allowFullScreen
+                                    allow="autoplay; encrypted-media; picture-in-picture"
+                                    title={
+                                        activeVideo.title
+                                    }
+                                />
+
+                            ) : (
+
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+
+                                    <AlertCircle className="h-10 w-10 mb-2 text-amber-500" />
+
+                                    <p>
+                                        Invalid YouTube Link
+                                    </p>
+
+                                </div>
+
+                            )}
+
+                        </div>
+
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+
+                            <div className="flex items-center mb-3">
+
+                                {activeVideo.type ===
+                                    "live" && (
+
+                                    <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center mr-3 animate-pulse">
+
+                                        <Radio className="h-3 w-3 mr-1" />
+
+                                        LIVE STREAM
+
+                                    </span>
+                                )}
+
+
+                                <span className="text-xs font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-1 rounded">
+
+                                    {activeVideo.subject}
+
+                                </span>
+
+                            </div>
+
+
+                            <h2 className="text-2xl font-bold text-slate-800">
+
+                                {activeVideo.title}
+
+                            </h2>
+
+                        </div>
+
+                    </div>
+
+
+                    <div className="lg:col-span-1 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col h-[500px] shadow-sm">
+
+                        <div className="p-4 border-b border-slate-200 bg-white font-bold text-slate-700 flex items-center rounded-t-2xl">
+
+                            <MessageSquare className="h-5 w-5 mr-2 text-indigo-500" />
+
+                            Live Chat / Doubt
+
+                        </div>
+
+
+                        <div className="flex-1 p-4 overflow-y-auto space-y-3">
+
+                            {activeVideoComments.length === 0 ? (
+
+                                <p className="text-xs text-center text-slate-400 mt-10">
+
+                                    Koi comment nahi hai.
+                                    Apna doubt yahan likhein.
+
+                                </p>
+
+                            ) : (
+
+                                activeVideoComments.map(
+                                    (c) => (
+
+                                        <div
+                                            key={c.id}
+                                            className={`flex flex-col ${
+                                                c.studentId ===
+                                                loggedInStudentMobile
+                                                    ? "items-end"
+                                                    : "items-start"
+                                            }`}
+                                        >
+
+                                            <span className="text-[10px] text-slate-500 font-bold mb-0.5">
+
+                                                {c.studentName}
+
+                                            </span>
+
+
+                                            <div
+                                                className={`px-3 py-2 rounded-xl max-w-[90%] text-sm ${
+                                                    c.studentId ===
+                                                    loggedInStudentMobile
+                                                        ? "bg-indigo-600 text-white rounded-tr-none"
+                                                        : "bg-white border shadow-sm rounded-tl-none"
+                                                }`}
+                                            >
+
+                                                {c.text}
+
+                                            </div>
+
+                                        </div>
+
+                                    )
+                                )
+
+                            )}
+
+                        </div>
+
+
+                        <form
+                            onSubmit={
+                                handlePostComment
+                            }
+
+                            className="p-3 bg-white border-t border-slate-200 rounded-b-2xl flex gap-2"
+                        >
+
+                            <input
+                                type="text"
+                                value={newComment}
+                                onChange={
+                                    e =>
+                                        setNewComment(
+                                            e.target.value
+                                        )
+                                }
+                                placeholder="Comment likhein..."
+                                className="flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:border-indigo-500"
+                            />
+
+
+                            <button
+                                type="submit"
+                                disabled={
+                                    !newComment.trim()
+                                }
+                                className="bg-indigo-600 text-white p-2 rounded-full disabled:opacity-50"
+                            >
+
+                                <Send className="h-4 w-4" />
+
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        );
+
+    };
+
+
+    /* =====================================================
+       STUDENT COURSE
+    ===================================================== */
+
+    const renderStudentCourseDashboard = () => {
+
+        const course =
+            courses.find(
+                c =>
+                    c.id ===
+                    activeCourseId
+            );
+
+
+        if (!course) return null;
+
+
+        return (
+
+            <div className="max-w-6xl mx-auto animate-fade-in">
+
+                <button
+                    onClick={() => {
+
+                        setActiveCourseId(null);
+
+                        setCurrentView(
+                            "student_dashboard"
+                        );
+
+                    }}
+
+                    className="flex items-center text-slate-500 hover:text-indigo-600 mb-4 text-sm font-bold bg-white px-4 py-2 rounded-lg shadow-sm border"
+                >
+
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+
+                    Wapas Dashboard
+
+                </button>
+
+
+                <div className="bg-indigo-700 rounded-3xl p-6 md:p-8 text-white shadow-lg flex items-center gap-6 mb-8">
+
+                    <img
+                        src={course.thumbnail}
+                        alt=""
+                        className="w-24 h-24 md:w-32 md:h-32 object-cover rounded-2xl shadow-xl bg-indigo-900 border-2 border-indigo-400"
+                    />
+
+                    <div>
+
+                        <span className="bg-yellow-400 text-yellow-900 text-xs font-black uppercase py-1 px-3 rounded-full mb-3 inline-block">
+
+                            Course Unlocked
+
+                        </span>
+
+
+                        <h1 className="text-2xl md:text-3xl font-extrabold mb-1">
+
+                            {course.title}
+
+                        </h1>
+
+                    </div>
+
+                </div>
+
+
+                <div className="flex overflow-x-auto bg-white rounded-xl shadow-sm border border-slate-200 p-1 mb-6 scrollbar-hide">
+
+                    <button
+                        onClick={() =>
+                            setContentTab(
+                                "classes"
+                            )
+                        }
+
+                        className={`flex-1 min-w-[100px] py-2.5 text-sm font-bold rounded-lg flex items-center justify-center ${
+                            contentTab === "classes"
+                                ? "bg-indigo-100 text-indigo-700"
+                                : "text-slate-600"
+                        }`}
+                    >
+
+                        <PlayCircle className="h-4 w-4 mr-2" />
+
+                        Classes
+
+                    </button>
+
+
+                    <button
+                        onClick={() =>
+                            setContentTab(
+                                "live"
+                            )
+                        }
+
+                        className={`flex-1 min-w-[100px] py-2.5 text-sm font-bold rounded-lg flex items-center justify-center ${
+                            contentTab === "live"
+                                ? "bg-red-100 text-red-700"
+                                : "text-slate-600"
+                        }`}
+                    >
+
+                        <Radio className="h-4 w-4 mr-2" />
+
+                        Live Classes
+
+                    </button>
+
+
+                    <button
+                        onClick={() =>
+                            setContentTab(
+                                "notes"
+                            )
+                        }
+
+                        className={`flex-1 min-w-[100px] py-2.5 text-sm font-bold rounded-lg flex items-center justify-center ${
+                            contentTab === "notes"
+                                ? "bg-indigo-100 text-indigo-700"
+                                : "text-slate-600"
+                        }`}
+                    >
+
+                        <FileText className="h-4 w-4 mr-2" />
+
+                        Notes
+
+                    </button>
+
+
+                    <button
+                        onClick={() =>
+                            setContentTab(
+                                "schedule"
+                            )
+                        }
+
+                        className={`flex-1 min-w-[100px] py-2.5 text-sm font-bold rounded-lg flex items-center justify-center ${
+                            contentTab === "schedule"
+                                ? "bg-indigo-100 text-indigo-700"
+                                : "text-slate-600"
+                        }`}
+                    >
+
+                        <Calendar className="h-4 w-4 mr-2" />
+
+                        Schedule
+
+                    </button>
+
+                </div>
+
+
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 min-h-[400px]">
+
+
+                    {(contentTab === "classes" ||
+                        contentTab === "live") && (
+
+                        <div className="space-y-4">
+
+                            <h3 className="text-xl font-bold text-slate-800 mb-4">
+
+                                {contentTab === "live"
+                                    ? "Live Streaming Classes"
+                                    : "Video Classes"}
+
+                            </h3>
+
+
+                            <div className="grid md:grid-cols-3 gap-4">
+
+                                {filteredContents
+                                    .filter(
+                                        c =>
+                                            c.type ===
+                                            (contentTab ===
+                                            "classes"
+                                                ? "class"
+                                                : "live")
+                                    )
+                                    .map(item => {
+
+                                        const ytId =
+                                            getYouTubeId(
+                                                item.link
+                                            );
+
+
+                                        const thumbUrl =
+                                            ytId
+                                                ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+                                                : "https://via.placeholder.com/300x169?text=Video";
+
+
+                                        return (
+
+                                            <button
+                                                key={item.id}
+                                                onClick={() => {
+
+                                                    setActiveVideo(
+                                                        item
+                                                    );
+
+                                                    setCurrentView(
+                                                        "student_video_player"
+                                                    );
+
+                                                }}
+
+                                                className="text-left border border-slate-200 rounded-xl hover:border-indigo-500 hover:shadow-md bg-white overflow-hidden group transition relative"
+                                            >
+
+                                                <div className="relative w-full h-40 bg-black">
+
+                                                    <img
+                                                        src={thumbUrl}
+                                                        alt=""
+                                                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                                                    />
+
+
+                                                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+
+                                                        <div className="w-12 h-12 rounded-full bg-indigo-600/90 flex items-center justify-center shadow-lg">
+
+                                                            <Play className="h-6 w-6 text-white ml-1 fill-current" />
+
+                                                        </div>
+
+                                                    </div>
+
+
+                                                    {item.type ===
+                                                        "live" && (
+
+                                                        <span className="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-black px-2 py-1 rounded shadow animate-pulse">
+
+                                                            LIVE
+
+                                                        </span>
+
+                                                    )}
+
+                                                </div>
+
+
+                                                <div className="p-4 bg-white">
+
+                                                    <span className="text-[10px] font-bold text-indigo-600 uppercase bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded">
+
+                                                        {item.subject}
+
+                                                    </span>
+
+
+                                                    <h4 className="font-bold text-slate-800 text-sm mt-2">
+
+                                                        {item.title}
+
+                                                    </h4>
+
+                                                </div>
+
+                                            </button>
+
+                                        );
+
+                                    })}
+
+
+                                {filteredContents.filter(
+                                    c =>
+                                        c.type ===
+                                        (contentTab ===
+                                        "classes"
+                                            ? "class"
+                                            : "live")
+                                ).length === 0 && (
+
+                                    <div className="col-span-3 text-center p-8 text-slate-500 border-2 border-dashed rounded-xl">
+
+                                        Abhi koi class add nahi hui hai.
+
+                                    </div>
+
+                                )}
+
+                            </div>
+
+                        </div>
+
+                    )}
+
+
+                    {contentTab === "notes" && (
+
+                        <div className="grid md:grid-cols-2 gap-4">
+
+                            {filteredContents
+                                .filter(
+                                    item =>
+                                        item.type ===
+                                        "note"
+                                )
+                                .map(item => (
+
+                                    <a
+                                        key={item.id}
+                                        href={item.link}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex items-start p-4 border rounded-xl hover:shadow-md bg-slate-50"
+                                    >
+
+                                        <div className="p-3 rounded-lg mr-4 bg-blue-100 text-blue-600">
+
+                                            <FileText className="h-6 w-6" />
+
+                                        </div>
+
+
+                                        <div>
+
+                                            <span className="text-xs font-bold text-indigo-600">
+
+                                                {item.subject}
+
+                                            </span>
+
+
+                                            <h4 className="font-bold">
+
+                                                {item.title}
+
+                                            </h4>
+
+                                        </div>
+
+                                    </a>
+
+                                ))}
+
+
+                            {filteredContents.filter(
+                                item =>
+                                    item.type ===
+                                    "note"
+                            ).length === 0 && (
+
+                                <div className="md:col-span-2 text-center p-8 text-slate-500">
+
+                                    Abhi koi notes available nahi hain.
+
+                                </div>
+
+                            )}
+
+                        </div>
+
+                    )}
+
+
+                    {contentTab === "schedule" && (
+
+                        <div className="space-y-3">
+
+                            {filteredContents
+                                .filter(
+                                    item =>
+                                        item.type ===
+                                        "schedule"
+                                )
+                                .map(item => (
+
+                                    <div
+                                        key={item.id}
+                                        className="flex items-center justify-between p-4 border border-slate-200 rounded-xl bg-white shadow-sm"
+                                    >
+
+                                        <div>
+
+                                            <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide bg-emerald-50 px-2 py-0.5 rounded">
+
+                                                {item.subject}
+
+                                            </span>
+
+
+                                            <h4 className="font-bold text-slate-800 text-lg mt-1">
+
+                                                {item.title}
+
+                                            </h4>
+
+                                        </div>
+
+
+                                        <div className="text-right bg-slate-50 p-3 rounded-lg border border-slate-100">
+
+                                            <div className="font-bold text-slate-700 flex items-center justify-end text-sm">
+
+                                                <Calendar className="h-4 w-4 mr-1" />
+
+                                                {item.date}
+
+                                            </div>
+
+
+                                            <div className="font-bold text-indigo-600 flex items-center justify-end mt-1 text-sm">
+
+                                                <Clock className="h-4 w-4 mr-1" />
+
+                                                {item.time}
+
+                                            </div>
+
+                                        </div>
+
+                                    </div>
+
+                                ))}
+
+
+                            {filteredContents.filter(
+                                item =>
+                                    item.type ===
+                                    "schedule"
+                            ).length === 0 && (
+
+                                <div className="text-center p-8 text-slate-500">
+
+                                    Abhi koi schedule nahi hai.
+
+                                </div>
+
+                            )}
+
+                        </div>
+
+                    )}
+
+                </div>
+
+            </div>
+
+        );
+
+    };
+
+
+    /* =====================================================
+       TEACHER COURSE MANAGER
+    ===================================================== */
+
+    const renderTeacherCourseManage = () => {
+
+        const course =
+            courses.find(
+                c =>
+                    c.id ===
+                    activeCourseId
+            );
+
+
+        if (!course) return null;
+
+
+        return (
+
+            <div className="max-w-6xl mx-auto animate-fade-in">
+
+                <button
+                    onClick={() => {
+
+                        setActiveCourseId(null);
+
+                        setCurrentView(
+                            "teacher_dashboard"
+                        );
+
+                    }}
+
+                    className="flex items-center text-slate-500 hover:text-emerald-600 mb-4 text-sm font-bold bg-white px-4 py-2 rounded-lg shadow-sm"
+                >
+
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+
+                    Wapas Dashboard
+
+                </button>
+
+
+                <div className="bg-emerald-700 rounded-2xl p-6 text-white shadow-lg flex items-center gap-4 mb-6">
+
+                    <img
+                        src={course.thumbnail}
+                        alt=""
+                        className="w-16 h-16 rounded-lg object-cover border-2 border-emerald-400"
+                    />
+
+                    <div>
+
+                        <span className="text-emerald-200 text-xs font-bold uppercase">
+
+                            Course Manager
+
+                        </span>
+
+
+                        <h2 className="text-2xl font-bold">
+
+                            {course.title}
+
+                        </h2>
+
+                    </div>
+
+                </div>
+
+
+                <div className="grid lg:grid-cols-3 gap-6">
+
+
+                    <div className="lg:col-span-1 space-y-6">
+
+                        <div className="bg-white rounded-2xl shadow-sm border p-5">
+
+                            <h3 className="font-bold text-slate-800 mb-4 border-b pb-2">
+
+                                Add Content
+
+                            </h3>
+
+
+                            <form
+                                onSubmit={
+                                    handleAddContent
+                                }
+                                className="space-y-4"
+                            >
+
+                                <select
+                                    value={
+                                        newContent.type
+                                    }
+                                    onChange={e =>
+                                        setNewContent({
+                                            ...newContent,
+                                            type:
+                                                e.target.value
+                                        })
+                                    }
+                                    className="w-full border rounded-lg py-2 px-3 text-sm bg-white font-bold text-slate-700"
+                                >
+
+                                    <option value="class">
+
+                                        Recorded Video (YouTube)
+
+                                    </option>
+
+                                    <option value="live">
+
+                                        🔴 Live Class (YouTube)
+
+                                    </option>
+
+                                    <option value="note">
+
+                                        PDF Note Link
+
+                                    </option>
+
+                                    <option value="schedule">
+
+                                        Live Schedule Info
+
+                                    </option>
+
+                                </select>
+
+
+                                <input
+                                    type="text"
+                                    required
+                                    value={
+                                        newContent.subject
+                                    }
+                                    onChange={e =>
+                                        setNewContent({
+                                            ...newContent,
+                                            subject:
+                                                e.target.value
+                                        })
+                                    }
+                                    className="w-full border rounded-lg py-2 px-3 text-sm"
+                                    placeholder="Subject Name"
+                                />
+
+
+                                <input
+                                    type="text"
+                                    required
+                                    value={
+                                        newContent.title
+                                    }
+                                    onChange={e =>
+                                        setNewContent({
+                                            ...newContent,
+                                            title:
+                                                e.target.value
+                                        })
+                                    }
+                                    className="w-full border rounded-lg py-2 px-3 text-sm"
+                                    placeholder="Title / Topic"
+                                />
+
+
+                                {(newContent.type ===
+                                    "class" ||
+                                    newContent.type ===
+                                    "live" ||
+                                    newContent.type ===
+                                    "note") && (
+
+                                    <input
+                                        type="url"
+                                        required
+                                        value={
+                                            newContent.link
+                                        }
+                                        onChange={e =>
+                                            setNewContent({
+                                                ...newContent,
+                                                link:
+                                                    e.target.value
+                                            })
+                                        }
+                                        className="w-full border rounded-lg py-2 px-3 text-sm"
+                                        placeholder="YouTube / Drive Link"
+                                    />
+
+                                )}
+
+
+                                {newContent.type ===
+                                    "schedule" && (
+
+                                    <div className="flex gap-2">
+
+                                        <input
+                                            type="date"
+                                            required
+                                            value={
+                                                newContent.date
+                                            }
+                                            onChange={e =>
+                                                setNewContent({
+                                                    ...newContent,
+                                                    date:
+                                                        e.target.value
+                                                })
+                                            }
+                                            className="w-full border rounded-lg py-2 px-3 text-sm"
+                                        />
+
+
+                                        <input
+                                            type="time"
+                                            required
+                                            value={
+                                                newContent.time
+                                            }
+                                            onChange={e =>
+                                                setNewContent({
+                                                    ...newContent,
+                                                    time:
+                                                        e.target.value
+                                                })
+                                            }
+                                            className="w-full border rounded-lg py-2 px-3 text-sm"
+                                        />
+
+                                    </div>
+
+                                )}
+
+
+                                <button
+                                    type="submit"
+                                    disabled={
+                                        isSubmitting
+                                    }
+                                    className="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-lg disabled:opacity-50"
+                                >
+
+                                    {isSubmitting
+                                        ? "Uploading..."
+                                        : "Upload Content"}
+
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    </div>
+
+
+                    <div className="lg:col-span-2 space-y-4">
+
+                        <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+
+                            <div className="flex border-b font-bold text-sm">
+
+                                <button
+                                    onClick={() =>
+                                        setContentTab(
+                                            "classes"
+                                        )
+                                    }
+
+                                    className={`flex-1 py-3 ${
+                                        contentTab ===
+                                        "classes"
+                                            ? "text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50"
+                                            : "text-slate-500"
+                                    }`}
+                                >
+
+                                    Content List
+
+                                </button>
+
+
+                                <button
+                                    onClick={() =>
+                                        setContentTab(
+                                            "comments"
+                                        )
+                                    }
+
+                                    className={`flex-1 py-3 ${
+                                        contentTab ===
+                                        "comments"
+                                            ? "text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50"
+                                            : "text-slate-500"
+                                    }`}
+                                >
+
+                                    Student Comments
+
+                                </button>
+
+                            </div>
+
+
+                            {contentTab ===
+                                "classes" && (
+
+                                <ul className="divide-y divide-slate-100 max-h-[500px] overflow-y-auto">
+
+                                    {filteredContents.map(
+                                        item => (
+
+                                            <li
+                                                key={
+                                                    item.id
+                                                }
+                                                className="p-4 flex justify-between items-center hover:bg-slate-50"
+                                            >
+
+                                                <div>
+
+                                                    <div className="text-xs font-bold text-slate-500 uppercase">
+
+                                                        {item.type}
+                                                        {" • "}
+                                                        {item.subject}
+
+                                                    </div>
+
+
+                                                    <div className="font-bold text-slate-800">
+
+                                                        {item.title}
+
+                                                    </div>
+
+                                                </div>
+
+
+                                                <button
+                                                    onClick={() =>
+                                                        handleDeleteContent(
+                                                            item.id
+                                                        )
+                                                    }
+                                                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                                >
+
+                                                    <Trash2 className="h-5 w-5" />
+
+                                                </button>
+
+                                            </li>
+
+                                        )
+                                    )}
+
+
+                                    {filteredContents.length ===
+                                        0 && (
+
+                                        <li className="p-8 text-center text-slate-500">
+
+                                            Abhi koi content nahi hai.
+
+                                        </li>
+
+                                    )}
+
+                                </ul>
+
+                            )}
+
+
+                            {contentTab ===
+                                "comments" && (
+
+                                <div className="max-h-[500px] overflow-y-auto p-4 space-y-3">
+
+                                    {courseComments.length ===
+                                    0 ? (
+
+                                        <p className="text-center text-slate-500 p-4">
+
+                                            Koi comment nahi hai.
+
+                                        </p>
+
+                                    ) : (
+
+                                        courseComments.map(
+                                            c => (
+
+                                                <div
+                                                    key={
+                                                        c.id
+                                                    }
+                                                    className="bg-slate-50 p-3 rounded-xl border flex justify-between items-start"
+                                                >
+
+                                                    <div>
+
+                                                        <div className="text-xs font-bold text-indigo-600">
+
+                                                            {c.studentName}
+
+                                                        </div>
+
+
+                                                        <div className="text-sm text-slate-800 mt-1">
+
+                                                            {c.text}
+
+                                                        </div>
+
+                                                    </div>
+
+
+                                                    <button
+                                                        onClick={() =>
+                                                            handleDeleteComment(
+                                                                c.id
+                                                            )
+                                                        }
+                                                        className="text-red-500 p-1 hover:bg-red-100 rounded"
+                                                        title="Delete Comment"
+                                                    >
+
+                                                        <Trash2 className="h-4 w-4" />
+
+                                                    </button>
+
+                                                </div>
+
+                                            )
+                                        )
+
+                                    )}
+
+                                </div>
+
+                            )}
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        );
+
+    };
+
+
+    /* =====================================================
+       LOADING
+    ===================================================== */
+
+    if (loading) {
+
+        return (
+
+            <div className="min-h-screen flex items-center justify-center bg-indigo-50">
+
+                <div className="text-center">
+
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mx-auto"></div>
+
+                    <p className="mt-4 text-slate-600 font-semibold">
+
+                        Firebase connect ho raha hai...
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        );
+
+    }
+
+
+    /* =====================================================
+       MAIN UI
+    ===================================================== */
+
+    return (
+
+        <>
+
+            <Toast
+                message={
+                    toast.message
+                }
+                type={
+                    toast.type
+                }
+                onClose={() =>
+                    setToast({
+                        message: "",
+                        type: ""
+                    })
+                }
+            />
+
+
+            <header className="bg-indigo-600 text-white shadow-md sticky top-0 z-50">
+
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+                    <div className="flex justify-between items-center h-16">
+
+                        <div
+                            className="flex items-center space-x-2 cursor-pointer"
+                            onClick={() =>
+                                setCurrentView(
+                                    "home"
+                                )
+                            }
+                        >
+
+                            <BookOpen className="h-8 w-8 text-yellow-300" />
+
+                            <span className="font-bold text-xl tracking-tight">
+
+                                Sheriya Study Zone
+
+                            </span>
+
+                        </div>
+
+
+                        {currentView !==
+                            "home" &&
+                            ![
+                                "student_auth",
+                                "teacher_login",
+                                "reset_password",
+                                "student_details"
+                            ].includes(
+                                currentView
+                            ) && (
+
+                            <button
+                                onClick={
+                                    logout
+                                }
+                                className="flex items-center text-sm font-medium hover:text-indigo-200 bg-indigo-700 px-3 py-1.5 rounded-lg"
+                            >
+
+                                <LogOut className="h-4 w-4 mr-1" />
+
+                                Logout
+
+                            </button>
+
+                        )}
+
+                    </div>
+
+                </div>
+
+            </header>
+
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+
+                {/* =================================================
+                   HOME
+                ================================================= */}
+
+                {currentView ===
+                    "home" && (
+
+                    <div className="max-w-4xl mx-auto text-center space-y-12 animate-fade-in">
+
+                        <div className="space-y-4">
+
+                            <h1 className="text-4xl md:text-6xl font-extrabold text-indigo-900 leading-tight">
+
+                                Kam Paise Me{" "}
+
+                                <span className="text-indigo-600">
+
+                                    Behtar Shiksha
+
+                                </span>
+
+                            </h1>
+
+
+                            <p className="text-slate-500 text-lg">
+
+                                Sheriya Study Zone
+
+                            </p>
+
+                        </div>
+
+
+                        <div className="grid md:grid-cols-2 gap-8 mt-12">
+
+
+                            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center">
+
+                                <div className="bg-indigo-100 p-4 rounded-full mb-4">
+
+                                    <GraduationCap className="h-10 w-10 text-indigo-600" />
+
+                                </div>
+
+
+                                <h2 className="text-2xl font-bold text-slate-800">
+
+                                    Student Portal
+
+                                </h2>
+
+
+                                <button
+                                    onClick={() =>
+                                        setCurrentView(
+                                            "student_auth"
+                                        )
+                                    }
+                                    className="w-full mt-4 bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-md"
+                                >
+
+                                    Student Login
+
+                                </button>
+
+                            </div>
+
+
+                            <div className="bg-white p-8 rounded-2xl shadow-lg border border-slate-100 flex flex-col items-center">
+
+                                <div className="bg-emerald-100 p-4 rounded-full mb-4">
+
+                                    <User className="h-10 w-10 text-emerald-600" />
+
+                                </div>
+
+
+                                <h2 className="text-2xl font-bold text-slate-800">
+
+                                    Teacher Portal
+
+                                </h2>
+
+
+                                <button
+                                    onClick={() =>
+                                        setCurrentView(
+                                            "teacher_login"
+                                        )
+                                    }
+                                    className="w-full mt-4 bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md"
+                                >
+
+                                    Teacher Login
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   STUDENT AUTH
+                ================================================= */}
+
+                {currentView ===
+                    "student_auth" && (
+
+                    <div className="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl border animate-fade-in">
+
+                        <button
+                            onClick={() =>
+                                setCurrentView(
+                                    "home"
+                                )
+                            }
+                            className="flex items-center text-slate-500 mb-6 text-sm font-bold"
+                        >
+
+                            <ArrowLeft className="h-4 w-4 mr-1" />
+
+                            Wapas
+
+                        </button>
+
+
+                        <div className="flex rounded-xl bg-slate-100 p-1 mb-8">
+
+                            <button
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg ${
+                                    authMode ===
+                                    "login"
+                                        ? "bg-white text-indigo-700 shadow"
+                                        : "text-slate-500"
+                                }`}
+                                onClick={() =>
+                                    setAuthMode(
+                                        "login"
+                                    )
+                                }
+                            >
+
+                                Login
+
+                            </button>
+
+
+                            <button
+                                className={`flex-1 py-2 text-sm font-bold rounded-lg ${
+                                    authMode ===
+                                    "signup"
+                                        ? "bg-white text-indigo-700 shadow"
+                                        : "text-slate-500"
+                                }`}
+                                onClick={() =>
+                                    setAuthMode(
+                                        "signup"
+                                    )
+                                }
+                            >
+
+                                New Sign Up
+
+                            </button>
+
+                        </div>
+
+
+                        {authMode ===
+                            "login" ? (
+
+                            <form
+                                onSubmit={
+                                    handleStudentLogin
+                                }
+                                className="space-y-4"
+                            >
+
+                                <div className="relative">
+
+                                    <Phone className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+
+                                    <input
+                                        type="tel"
+                                        required
+                                        maxLength="10"
+                                        value={
+                                            mobile
+                                        }
+                                        onChange={e =>
+                                            setMobile(
+                                                e.target.value.replace(
+                                                    /\D/g,
+                                                    ""
+                                                )
+                                            )
+                                        }
+                                        className="pl-10 w-full border rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="Mobile Number"
+                                    />
+
+                                </div>
+
+
+                                <div className="relative">
+
+                                    <Key className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+
+                                    <input
+                                        type="password"
+                                        required
+                                        value={
+                                            password
+                                        }
+                                        onChange={e =>
+                                            setPassword(
+                                                e.target.value
+                                            )
+                                        }
+                                        className="pl-10 w-full border rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                        placeholder="Password"
+                                    />
+
+                                </div>
+
+
+                                <button
+                                    type="submit"
+                                    disabled={
+                                        isSubmitting
+                                    }
+                                    className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg mt-2 disabled:opacity-50"
+                                >
+
+                                    {isSubmitting
+                                        ? "Login ho raha hai..."
+                                        : "Login Karein"}
+
+                                </button>
+
+                            </form>
+
+                        ) : (
+
+                            <form
+                                onSubmit={
+                                    showOtpField
+                                        ? handleVerifyOtp
+                                        : handleSendOtp
+                                }
+                                className="space-y-4"
+                            >
+
+                                <div className="relative">
+
+                                    <Phone className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+
+                                    <input
+                                        type="tel"
+                                        required
+                                        maxLength="10"
+                                        disabled={
+                                            showOtpField
+                                        }
+                                        value={
+                                            mobile
+                                        }
+                                        onChange={e =>
+                                            setMobile(
+                                                e.target.value.replace(
+                                                    /\D/g,
+                                                    ""
+                                                )
+                                            )
+                                        }
+                                        className="pl-10 w-full border rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-500 outline-none disabled:bg-slate-100"
+                                        placeholder="Mobile Number"
+                                    />
+
+                                </div>
+
+
+                                {showOtpField && (
+
+                                    <div>
+
+                                        <div className="relative">
+
+                                            <Lock className="absolute left-3 top-3.5 h-5 w-5 text-slate-400" />
+
+                                            <input
+                                                type="text"
+                                                required
+                                                maxLength="4"
+                                                value={
+                                                    otp
+                                                }
+                                                onChange={e =>
+                                                    setOtp(
+                                                        e.target.value.replace(
+                                                            /\D/g,
+                                                            ""
+                                                        )
+                                                    )
+                                                }
+                                                className="pl-10 w-full border rounded-xl py-3 px-4 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                placeholder="OTP"
+                                            />
+
+                                        </div>
+
+
+                                        <div className="mt-2 text-xs text-blue-600 bg-blue-50 p-2 rounded">
+
+                                            Demo OTP:{" "}
+
+                                            {generatedOtp}
+
+                                        </div>
+
+                                    </div>
+
+                                )}
+
+
+                                <button
+                                    type="submit"
+                                    className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg"
+                                >
+
+                                    {showOtpField
+                                        ? "Verify OTP"
+                                        : "OTP Bhejein"}
+
+                                </button>
+
+                            </form>
+
+                        )}
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   STUDENT DETAILS
+                ================================================= */}
+
+                {currentView ===
+                    "student_details" && (
+
+                    <div className="max-w-lg mx-auto bg-white p-8 rounded-3xl shadow-xl border animate-fade-in">
+
+                        <h2 className="text-2xl font-extrabold text-center text-indigo-900 mb-6">
+
+                            Profile Details
+
+                        </h2>
+
+
+                        <form
+                            onSubmit={
+                                handleSaveStudentDetails
+                            }
+                            className="space-y-4"
+                        >
+
+                            <input
+                                type="text"
+                                required
+                                value={
+                                    studentDetails.name
+                                }
+                                onChange={e =>
+                                    setStudentDetails({
+                                        ...studentDetails,
+                                        name:
+                                            e.target.value
+                                    })
+                                }
+                                className="w-full border rounded-xl py-2.5 px-4"
+                                placeholder="Poora Naam"
+                            />
+
+
+                            <input
+                                type="text"
+                                value={
+                                    studentDetails.email
+                                }
+                                onChange={e =>
+                                    setStudentDetails({
+                                        ...studentDetails,
+                                        email:
+                                            e.target.value
+                                    })
+                                }
+                                className="w-full border rounded-xl py-2.5 px-4"
+                                placeholder="Email (Optional)"
+                            />
+
+
+                            <input
+                                type="text"
+                                required
+                                value={
+                                    studentDetails.fatherName
+                                }
+                                onChange={e =>
+                                    setStudentDetails({
+                                        ...studentDetails,
+                                        fatherName:
+                                            e.target.value
+                                    })
+                                }
+                                className="w-full border rounded-xl py-2.5 px-4"
+                                placeholder="Father's Name"
+                            />
+
+
+                            <select
+                                value={
+                                    studentDetails.studentClass
+                                }
+                                onChange={e =>
+                                    setStudentDetails({
+                                        ...studentDetails,
+                                        studentClass:
+                                            e.target.value
+                                    })
+                                }
+                                className="w-full border rounded-xl py-2.5 px-4"
+                            >
+
+                                <option value="Class 8">
+                                    Class 8
+                                </option>
+
+                                <option value="Class 9">
+                                    Class 9
+                                </option>
+
+                                <option value="Class 10">
+                                    Class 10
+                                </option>
+
+                                <option value="Class 11">
+                                    Class 11
+                                </option>
+
+                                <option value="Class 12">
+                                    Class 12
+                                </option>
+
+                                <option value="Competitive Exams">
+                                    Competitive Exams
+                                </option>
+
+                            </select>
+
+
+                            <input
+                                type="password"
+                                required
+                                minLength="6"
+                                value={
+                                    studentDetails.newPassword
+                                }
+                                onChange={e =>
+                                    setStudentDetails({
+                                        ...studentDetails,
+                                        newPassword:
+                                            e.target.value
+                                    })
+                                }
+                                className="w-full border rounded-xl py-2.5 px-4"
+                                placeholder="Password (Min 6 char)"
+                            />
+
+
+                            <button
+                                type="submit"
+                                disabled={
+                                    isSubmitting
+                                }
+                                className="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg mt-4 disabled:opacity-50"
+                            >
+
+                                {isSubmitting
+                                    ? "Account ban raha hai..."
+                                    : "Account Banayein"}
+
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   STUDENT DASHBOARD
+                ================================================= */}
+
+                {currentView ===
+                    "student_dashboard" && (
+
+                    <div className="max-w-5xl mx-auto space-y-8 animate-fade-in">
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border">
+
+                            <h2 className="text-2xl font-bold text-indigo-900">
+
+                                Namaste,{" "}
+
+                                {studentDetails.name ||
+                                    "Student"}!
+
+                            </h2>
+
+
+                            <p className="text-slate-500 mt-1">
+
+                                Apne available courses dekhein.
+
+                            </p>
+
+                        </div>
+
+
+                        <div>
+
+                            <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center">
+
+                                <BookOpen className="h-5 w-5 mr-2 text-indigo-600" />
+
+                                Available Courses
+
+                            </h3>
+
+
+                            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                                {courses.map(
+                                    course => {
+
+                                        const status =
+                                            getEnrollmentStatus(
+                                                course.id
+                                            );
+
+
+                                        return (
+
+                                            <div
+                                                key={
+                                                    course.id
+                                                }
+                                                className="bg-white rounded-2xl border shadow-sm flex flex-col overflow-hidden"
+                                            >
+
+                                                <img
+                                                    src={
+                                                        course.thumbnail
+                                                    }
+                                                    alt=""
+                                                    className="w-full h-40 object-cover bg-slate-100"
+                                                />
+
+
+                                                <div className="p-5 flex flex-col flex-grow">
+
+                                                    <h4 className="text-lg font-bold mb-1">
+
+                                                        {course.title}
+
+                                                    </h4>
+
+
+                                                    <p className="text-indigo-600 font-extrabold text-xl mb-4">
+
+                                                        ₹
+                                                        {
+                                                            course.price
+                                                        }
+
+                                                    </p>
+
+
+                                                    <div className="mt-auto">
+
+                                                        {!status && (
+
+                                                            <button
+                                                                onClick={() => {
+
+                                                                    setSelectedCourse(
+                                                                        course
+                                                                    );
+
+                                                                    setCurrentView(
+                                                                        "payment_page"
+                                                                    );
+
+                                                                }}
+                                                                className="w-full bg-indigo-600 text-white font-bold py-2 rounded-xl"
+                                                            >
+
+                                                                Batch Join Karein
+
+                                                            </button>
+
+                                                        )}
+
+
+                                                        {status ===
+                                                            "pending" && (
+
+                                                            <div className="w-full bg-amber-100 text-amber-800 font-bold py-2 rounded-xl text-center">
+
+                                                                Approval Pending
+
+                                                            </div>
+
+                                                        )}
+
+
+                                                        {status ===
+                                                            "approved" && (
+
+                                                            <button
+                                                                onClick={() => {
+
+                                                                    setActiveCourseId(
+                                                                        course.id
+                                                                    );
+
+                                                                    setContentTab(
+                                                                        "classes"
+                                                                    );
+
+                                                                    setCurrentView(
+                                                                        "student_course_view"
+                                                                    );
+
+                                                                }}
+                                                                className="w-full bg-emerald-600 text-white font-bold py-2 rounded-xl shadow-md"
+                                                            >
+
+                                                                Open Course
+
+                                                            </button>
+
+                                                        )}
+
+                                                    </div>
+
+                                                </div>
+
+                                            </div>
+
+                                        );
+
+                                    }
+                                )}
+
+
+                                {courses.length ===
+                                    0 && (
+
+                                    <div className="md:col-span-3 text-center bg-white border-2 border-dashed rounded-xl p-10 text-slate-500">
+
+                                        Abhi koi course available nahi hai.
+
+                                    </div>
+
+                                )}
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   COURSE VIEW
+                ================================================= */}
+
+                {currentView ===
+                    "student_course_view" &&
+                    renderStudentCourseDashboard()}
+
+
+                {/* =================================================
+                   VIDEO PLAYER
+                ================================================= */}
+
+                {currentView ===
+                    "student_video_player" &&
+                    renderStudentVideoPlayer()}
+
+
+                {/* =================================================
+                   PAYMENT
+                ================================================= */}
+
+                {currentView ===
+                    "payment_page" &&
+                    selectedCourse && (
+
+                    <div className="max-w-2xl mx-auto animate-fade-in bg-white rounded-3xl shadow-xl border">
+
+                        <div className="bg-indigo-600 p-6 text-white text-center">
+
+                            <h2 className="text-2xl font-bold">
+
+                                Secure Payment
+
+                            </h2>
+
+                        </div>
+
+
+                        <div className="p-8 flex flex-col md:flex-row gap-8 items-center">
+
+                            <div className="w-full md:w-1/2 flex flex-col items-center border-2 border-dashed p-6 rounded-2xl bg-indigo-50">
+
+                                <p className="font-bold text-indigo-800 mb-3">
+
+                                    Scan & Pay
+
+                                </p>
+
+
+                                <img
+                                    src={
+                                        selectedCourse.upiScanner
+                                    }
+                                    alt="UPI QR"
+                                    className="w-48 h-48 object-contain bg-white p-2 rounded-xl"
+                                />
+
+
+                                <p className="mt-4 font-mono font-bold">
+
+                                    {
+                                        selectedCourse.upiId
+                                    }
+
+                                </p>
+
+                            </div>
+
+
+                            <div className="w-full md:w-1/2 space-y-4">
+
+                                <div className="bg-slate-50 rounded-xl p-4">
+
+                                    <p className="text-sm text-slate-500">
+
+                                        Course
+
+                                    </p>
+
+                                    <p className="font-bold">
+
+                                        {
+                                            selectedCourse.title
+                                        }
+
+                                    </p>
+
+
+                                    <p className="text-indigo-600 font-bold text-xl">
+
+                                        ₹
+                                        {
+                                            selectedCourse.price
+                                        }
+
+                                    </p>
+
+                                </div>
+
+
+                                <button
+                                    onClick={
+                                        handlePaymentConfirm
+                                    }
+                                    disabled={
+                                        isSubmitting
+                                    }
+                                    className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+                                >
+
+                                    {isSubmitting
+                                        ? "Submitting..."
+                                        : "Maine Payment Kar Diya Hai"}
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   TEACHER LOGIN
+                ================================================= */}
+
+                {currentView ===
+                    "teacher_login" && (
+
+                    <div className="max-w-md mx-auto bg-white p-8 rounded-3xl shadow-xl border animate-fade-in">
+
+                        <button
+                            onClick={() =>
+                                setCurrentView(
+                                    "home"
+                                )
+                            }
+                            className="text-slate-500 mb-6 text-sm font-bold"
+                        >
+
+                            ← Wapas
+
+                        </button>
+
+
+                        <h2 className="text-2xl font-extrabold text-center mb-6">
+
+                            Teacher Portal
+
+                        </h2>
+
+
+                        <form
+                            onSubmit={
+                                handleTeacherLogin
+                            }
+                            className="space-y-4"
+                        >
+
+                            <input
+                                type="tel"
+                                required
+                                value={
+                                    teacherMobile
+                                }
+                                onChange={e =>
+                                    setTeacherMobile(
+                                        e.target.value
+                                    )
+                                }
+                                className="w-full border rounded-xl py-3 px-4 focus:ring-2 focus:ring-emerald-500"
+                                placeholder="Mobile Number"
+                            />
+
+
+                            <input
+                                type="password"
+                                required
+                                value={
+                                    teacherPassword
+                                }
+                                onChange={e =>
+                                    setTeacherPassword(
+                                        e.target.value
+                                    )
+                                }
+                                className="w-full border rounded-xl py-3 px-4 focus:ring-2 focus:ring-emerald-500"
+                                placeholder="Password"
+                            />
+
+
+                            <button
+                                type="submit"
+                                className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-lg"
+                            >
+
+                                Login
+
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   TEACHER DASHBOARD
+                ================================================= */}
+
+                {currentView ===
+                    "teacher_dashboard" && (
+
+                    <div className="max-w-6xl mx-auto animate-fade-in">
+
+                        <div className="bg-emerald-600 p-6 rounded-2xl text-white flex flex-col md:flex-row justify-between items-center mb-8 shadow-md">
+
+                            <h2 className="text-2xl font-bold mb-4 md:mb-0">
+
+                                Teacher Dashboard
+
+                            </h2>
+
+
+                            <div className="flex gap-2 bg-emerald-700 p-1.5 rounded-xl flex-wrap justify-center">
+
+                                <button
+                                    onClick={() =>
+                                        setTeacherTab(
+                                            "enrollments"
+                                        )
+                                    }
+                                    className={`px-4 py-2 rounded-lg font-bold text-sm ${
+                                        teacherTab ===
+                                        "enrollments"
+                                            ? "bg-white text-emerald-800 shadow"
+                                            : "text-emerald-100 hover:bg-emerald-600"
+                                    }`}
+                                >
+
+                                    Requests
+
+                                </button>
+
+
+                                <button
+                                    onClick={() =>
+                                        setTeacherTab(
+                                            "courses"
+                                        )
+                                    }
+                                    className={`px-4 py-2 rounded-lg font-bold text-sm ${
+                                        teacherTab ===
+                                        "courses"
+                                            ? "bg-white text-emerald-800 shadow"
+                                            : "text-emerald-100 hover:bg-emerald-600"
+                                    }`}
+                                >
+
+                                    Courses
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+
+                        {/* REQUESTS */}
+
+                        {teacherTab ===
+                            "enrollments" && (
+
+                            <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
+
+                                <div className="overflow-x-auto">
+
+                                    <table className="w-full text-left">
+
+                                        <thead>
+
+                                            <tr className="bg-slate-50 text-slate-600 text-sm uppercase">
+
+                                                <th className="p-4 font-bold">
+                                                    Student
+                                                </th>
+
+                                                <th className="p-4 font-bold">
+                                                    Course
+                                                </th>
+
+                                                <th className="p-4 font-bold">
+                                                    Action
+                                                </th>
+
+                                            </tr>
+
+                                        </thead>
+
+
+                                        <tbody>
+
+                                            {enrollments.map(
+                                                req => (
+
+                                                    <tr
+                                                        key={
+                                                            req.id
+                                                        }
+                                                        className="border-t border-slate-100"
+                                                    >
+
+                                                        <td className="p-4">
+
+                                                            <p className="font-bold">
+
+                                                                {
+                                                                    req.studentName
+                                                                }
+
+                                                            </p>
+
+                                                            <p className="text-sm text-slate-500">
+
+                                                                {
+                                                                    req.studentMobile
+                                                                }
+
+                                                            </p>
+
+                                                        </td>
+
+
+                                                        <td className="p-4 font-medium text-indigo-700">
+
+                                                            {
+                                                                req.courseName
+                                                            }
+
+                                                        </td>
+
+
+                                                        <td className="p-4">
+
+                                                            {req.status ===
+                                                            "pending" ? (
+
+                                                                <button
+                                                                    onClick={() =>
+                                                                        handleUnlockCourse(
+                                                                            req.id
+                                                                        )
+                                                                    }
+                                                                    className="bg-emerald-500 text-white py-2 px-4 rounded-lg font-bold text-xs"
+                                                                >
+
+                                                                    Unlock Course
+
+                                                                </button>
+
+                                                            ) : (
+
+                                                                <span className="text-emerald-600 font-bold text-sm">
+
+                                                                    Unlocked ✓
+
+                                                                </span>
+
+                                                            )}
+
+                                                        </td>
+
+                                                    </tr>
+
+                                                )
+                                            )}
+
+
+                                            {enrollments.length ===
+                                                0 && (
+
+                                                <tr>
+
+                                                    <td
+                                                        colSpan="3"
+                                                        className="p-10 text-center text-slate-500"
+                                                    >
+
+                                                        Koi enrollment request nahi hai.
+
+                                                    </td>
+
+                                                </tr>
+
+                                            )}
+
+                                        </tbody>
+
+                                    </table>
+
+                                </div>
+
+                            </div>
+
+                        )}
+
+
+                        {/* COURSES */}
+
+                        {teacherTab ===
+                            "courses" && (
+
+                            <div className="grid lg:grid-cols-3 gap-8">
+
+
+                                <div className="lg:col-span-1 bg-white p-6 rounded-3xl shadow-sm border">
+
+                                    <h3 className="font-bold text-slate-800 mb-4">
+
+                                        Naya Course Banayein
+
+                                    </h3>
+
+
+                                    <form
+                                        onSubmit={
+                                            handleCreateCourse
+                                        }
+                                        className="space-y-4"
+                                    >
+
+                                        <input
+                                            type="text"
+                                            required
+                                            value={
+                                                newCourse.title
+                                            }
+                                            onChange={e =>
+                                                setNewCourse({
+                                                    ...newCourse,
+                                                    title:
+                                                        e.target.value
+                                                })
+                                            }
+                                            className="w-full border rounded-lg py-2 px-3 text-sm"
+                                            placeholder="Course Name"
+                                        />
+
+
+                                        <input
+                                            type="number"
+                                            required
+                                            min="0"
+                                            value={
+                                                newCourse.price
+                                            }
+                                            onChange={e =>
+                                                setNewCourse({
+                                                    ...newCourse,
+                                                    price:
+                                                        e.target.value
+                                                })
+                                            }
+                                            className="w-full border rounded-lg py-2 px-3 text-sm"
+                                            placeholder="Price (₹)"
+                                        />
+
+
+                                        <div className="border border-dashed p-3 rounded-lg text-center">
+
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={e =>
+                                                    handleImageUpload(
+                                                        e,
+                                                        "thumbnail"
+                                                    )
+                                                }
+                                                className="w-full text-xs"
+                                            />
+
+
+                                            {newCourse.thumbnail && (
+
+                                                <img
+                                                    src={
+                                                        newCourse.thumbnail
+                                                    }
+                                                    alt="Course"
+                                                    className="mt-3 w-full h-32 object-cover rounded-lg"
+                                                />
+
+                                            )}
+
+                                        </div>
+
+
+                                        <input
+                                            type="text"
+                                            required
+                                            value={
+                                                newCourse.upiId
+                                            }
+                                            onChange={e =>
+                                                setNewCourse({
+                                                    ...newCourse,
+                                                    upiId:
+                                                        e.target.value
+                                                })
+                                            }
+                                            className="w-full border rounded-lg py-2 px-3 text-sm"
+                                            placeholder="UPI ID"
+                                        />
+
+
+                                        <div className="border border-dashed p-3 rounded-lg text-center">
+
+                                            <input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={e =>
+                                                    handleImageUpload(
+                                                        e,
+                                                        "upiScanner"
+                                                    )
+                                                }
+                                                className="w-full text-xs"
+                                            />
+
+
+                                            {newCourse.upiScanner && (
+
+                                                <img
+                                                    src={
+                                                        newCourse.upiScanner
+                                                    }
+                                                    alt="UPI QR"
+                                                    className="mt-3 w-32 h-32 object-contain mx-auto rounded-lg"
+                                                />
+
+                                            )}
+
+                                        </div>
+
+
+                                        <input
+                                            type="tel"
+                                            required
+                                            maxLength="10"
+                                            value={
+                                                newCourse.contactNumber
+                                            }
+                                            onChange={e =>
+                                                setNewCourse({
+                                                    ...newCourse,
+                                                    contactNumber:
+                                                        e.target.value.replace(
+                                                            /\D/g,
+                                                            ""
+                                                        )
+                                                })
+                                            }
+                                            className="w-full border rounded-lg py-2 px-3 text-sm"
+                                            placeholder="Contact Number"
+                                        />
+
+
+                                        <button
+                                            type="submit"
+                                            disabled={
+                                                isSubmitting ||
+                                                uploadingImage
+                                            }
+                                            className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl disabled:opacity-50"
+                                        >
+
+                                            {isSubmitting
+                                                ? "Publishing..."
+                                                : "Publish Course"}
+
+                                        </button>
+
+                                    </form>
+
+                                </div>
+
+
+                                <div className="lg:col-span-2 grid sm:grid-cols-2 gap-4">
+
+                                    {courses.map(
+                                        course => (
+
+                                            <div
+                                                key={
+                                                    course.id
+                                                }
+                                                className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex flex-col justify-between"
+                                            >
+
+                                                <div className="flex items-start space-x-4 mb-3">
+
+                                                    <img
+                                                        src={
+                                                            course.thumbnail
+                                                        }
+                                                        alt=""
+                                                        className="w-20 h-20 rounded-xl object-cover"
+                                                    />
+
+
+                                                    <div>
+
+                                                        <h4 className="font-bold text-slate-800 text-sm">
+
+                                                            {
+                                                                course.title
+                                                            }
+
+                                                        </h4>
+
+
+                                                        <p className="text-emerald-600 font-black mt-1">
+
+                                                            ₹
+                                                            {
+                                                                course.price
+                                                            }
+
+                                                        </p>
+
+                                                    </div>
+
+                                                </div>
+
+
+                                                <button
+                                                    onClick={() => {
+
+                                                        setActiveCourseId(
+                                                            course.id
+                                                        );
+
+                                                        setContentTab(
+                                                            "classes"
+                                                        );
+
+                                                        setCurrentView(
+                                                            "teacher_course_manage"
+                                                        );
+
+                                                    }}
+                                                    className="w-full bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 rounded-lg text-sm transition"
+                                                >
+
+                                                    Manage Content
+
+                                                </button>
+
+                                            </div>
+
+                                        )
+                                    )}
+
+
+                                    {courses.length ===
+                                        0 && (
+
+                                        <div className="sm:col-span-2 bg-white border-2 border-dashed rounded-2xl p-10 text-center text-slate-500">
+
+                                            Abhi koi course publish nahi hua hai.
+
+                                        </div>
+
+                                    )}
+
+                                </div>
+
+                            </div>
+
+                        )}
+
+                    </div>
+
+                )}
+
+
+                {/* =================================================
+                   TEACHER COURSE MANAGER
+                ================================================= */}
+
+                {currentView ===
+                    "teacher_course_manage" &&
+                    renderTeacherCourseManage()}
+
+            </main>
+
+        </>
+
+    );
+
+}
+
+
+/* =========================================================
+   START REACT
+========================================================= */
+
+const root =
+    createRoot(
+        document.getElementById(
+            "root"
+        )
+    );
+
+
+root.render(
+    <App />
+);
+
+</script>
+
 </body>
 </html>
