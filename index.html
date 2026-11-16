@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="hi">
 <head>
@@ -39,7 +40,7 @@
     <script src="https://www.youtube.com/iframe_api"></script>
 
     <style>
-    body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; background-color: #f6f8fd; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; user-select: none; background-color: #f6f8fd; }
         .font-bubble { font-family: 'Fredoka', cursive, sans-serif; }
         .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -56,6 +57,20 @@
         .video-secure-container { position: relative; background: #000; overflow: hidden; border-radius: 1.5rem; }
         .shield-top-bar { position: absolute; top: 0; left: 0; right: 0; height: 65px; background: transparent; z-index: 25; cursor: default; }
         .shield-bottom-brand { position: absolute; bottom: 48px; right: 0; width: 90px; height: 48px; background: transparent; z-index: 25; cursor: default; }
+
+        /* Left to Right Marquee Animation */
+        @keyframes marqueeLTR {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100vw); }
+        }
+        .animate-marquee-ltr {
+            display: inline-block;
+            white-space: nowrap;
+            animation: marqueeLTR 18s linear infinite;
+        }
+        .animate-marquee-ltr:hover {
+            animation-play-state: paused;
+        }
 
         .phone-mockup { width: 280px; height: 560px; border: 12px solid #1e293b; border-radius: 40px; background: #fff; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); animation: phonePopUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; margin: 0 auto; overflow: hidden; transform-origin: bottom center; }
         .phone-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 120px; height: 25px; background: #1e293b; border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; z-index: 10; }
@@ -86,7 +101,8 @@ import {
     VolumeX, Maximize, Settings, ThumbsUp, Bookmark, Sliders, Sparkles, SkipForward,
     ChevronDown, LayoutDashboard, Folder, FolderOpen, ClipboardList, Timer, CheckSquare, 
     XCircle, Info, PhoneCall, Download, Megaphone, HelpCircle, MoreVertical, Bot, ShieldCheck,
-    Receipt, UserMinus, RotateCcw, Search, Filter
+    Receipt, UserMinus, RotateCcw, Search, Filter, Home, Image as ImageIcon, Film, ChevronLeft,
+    Award, Users
 } from "https://esm.sh/lucide-react@0.294.0";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -133,6 +149,265 @@ const Toast = ({ message, type, onClose }) => {
             {type === 'error' ? <XCircle className="h-4 w-4 shrink-0" /> : <CheckCircle className="h-4 w-4 shrink-0" />}
             <span>{message}</span>
             <button onClick={onClose} className="ml-2 hover:opacity-80 p-0.5"><X className="h-3.5 w-3.5" /></button>
+        </div>
+    );
+};
+
+// Poster Carousel Component (Auto-slide + 10s pause on touch)
+const PosterCarousel = ({ posters }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
+    const pauseTimeoutRef = useRef(null);
+    const touchStartX = useRef(0);
+
+    useEffect(() => {
+        if (!posters || posters.length <= 1 || isPaused) return;
+        const timer = setInterval(() => {
+            setCurrentIndex(prev => (prev + 1) % posters.length);
+        }, 3500);
+        return () => clearInterval(timer);
+    }, [posters, isPaused]);
+
+    useEffect(() => {
+        return () => { if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current); };
+    }, []);
+
+    const triggerPause = () => {
+        setIsPaused(true);
+        if (pauseTimeoutRef.current) clearTimeout(pauseTimeoutRef.current);
+        pauseTimeoutRef.current = setTimeout(() => {
+            setIsPaused(false);
+        }, 10000);
+    };
+
+    const handleTouchStart = (e) => {
+        touchStartX.current = e.touches[0].clientX;
+        triggerPause();
+    };
+
+    const handleTouchEnd = (e) => {
+        const diff = touchStartX.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40 && posters.length > 1) {
+            if (diff > 0) setCurrentIndex(prev => (prev + 1) % posters.length);
+            else setCurrentIndex(prev => (prev - 1 + posters.length) % posters.length);
+        }
+    };
+
+    if (!posters || posters.length === 0) return null;
+
+    return (
+        <div 
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
+            onClick={triggerPause}
+            className="relative w-full h-36 sm:h-48 md:h-56 rounded-3xl overflow-hidden shadow-soft-card border border-indigo-100 bg-slate-900 select-none group"
+        >
+            <div 
+                className="flex h-full transition-transform duration-500 ease-out"
+                style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+            >
+                {posters.map((poster) => (
+                    <div key={poster.id} className="w-full h-full shrink-0 relative">
+                        <img src={poster.image} alt={poster.caption || "Banner"} className="w-full h-full object-cover" />
+                        {poster.caption && (
+                            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 pt-6">
+                                <p className="text-white text-xs sm:text-sm font-bold truncate">{poster.caption}</p>
+                            </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+
+            {isPaused && (
+                <div className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <Pause className="h-3 w-3 text-yellow-300" /> Paused (10s)
+                </div>
+            )}
+
+            {posters.length > 1 && (
+                <>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); triggerPause(); setCurrentIndex(prev => (prev - 1 + posters.length) % posters.length); }}
+                        className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    >
+                        <ChevronLeft className="h-4 w-4" />
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); triggerPause(); setCurrentIndex(prev => (prev + 1) % posters.length); }}
+                        className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 text-white items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </button>
+                    <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
+                        {posters.map((_, idx) => (
+                            <button 
+                                key={idx} 
+                                onClick={(e) => { e.stopPropagation(); triggerPause(); setCurrentIndex(idx); }}
+                                className={`h-1.5 rounded-full transition-all ${currentIndex === idx ? 'w-5 bg-yellow-300' : 'w-1.5 bg-white/60'}`}
+                            />
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+// Advertisement Video Player Component (Auto-play, Muted, Swipeable, Continuous Loop)
+const AdVideoCarousel = ({ ads }) => {
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [isMuted, setIsMuted] = useState(true);
+    const playerRef = useRef(null);
+    const touchStartX = useRef(0);
+    const containerId = "ad-yt-player-frame";
+
+    const currentAd = ads && ads.length > 0 ? ads[currentIndex % ads.length] : null;
+    const ytId = currentAd ? getYouTubeId(currentAd.link) : null;
+
+    const goToNext = () => {
+        if (!ads || ads.length === 0) return;
+        setCurrentIndex(prev => (prev + 1) % ads.length);
+    };
+
+    const goToPrev = () => {
+        if (!ads || ads.length === 0) return;
+        setCurrentIndex(prev => (prev - 1 + ads.length) % ads.length);
+    };
+
+    useEffect(() => {
+        if (!ytId) return;
+
+        const initPlayer = () => {
+            if (playerRef.current && playerRef.current.destroy) {
+                try { playerRef.current.destroy(); } catch (e) {}
+            }
+            playerRef.current = new window.YT.Player(containerId, {
+                videoId: ytId,
+                playerVars: {
+                    autoplay: 1,
+                    mute: 1,
+                    controls: 0,
+                    modestbranding: 1,
+                    rel: 0,
+                    playsinline: 1,
+                    iv_load_policy: 3
+                },
+                events: {
+                    onReady: (e) => {
+                        if (isMuted) e.target.mute();
+                        else e.target.unMute();
+                        e.target.playVideo();
+                    },
+                    onStateChange: (e) => {
+                        if (e.data === window.YT.PlayerState.ENDED) {
+                            if (ads.length === 1) {
+                                e.target.seekTo(0);
+                                e.target.playVideo();
+                            } else {
+                                goToNext();
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        if (window.YT && window.YT.Player) {
+            initPlayer();
+        } else {
+            const orig = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = () => {
+                if (orig) orig();
+                initPlayer();
+            };
+        }
+
+        return () => {
+            if (playerRef.current && playerRef.current.destroy) {
+                try { playerRef.current.destroy(); } catch (e) {}
+            }
+        };
+    }, [ytId, currentIndex, ads?.length]);
+
+    const toggleMute = (e) => {
+        e.stopPropagation();
+        if (!playerRef.current) return;
+        if (isMuted) {
+            playerRef.current.unMute();
+            setIsMuted(false);
+        } else {
+            playerRef.current.mute();
+            setIsMuted(true);
+        }
+    };
+
+    const handleTouchStart = (e) => {
+        touchStartX.current = e.touches[0].clientX;
+    };
+
+    const handleTouchEnd = (e) => {
+        const diff = touchStartX.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40 && ads.length > 1) {
+            if (diff > 0) goToNext();
+            else goToPrev();
+        }
+    };
+
+    if (!ads || ads.length === 0) return null;
+
+    return (
+        <div className="space-y-2.5">
+            <div className="flex items-center justify-between px-1">
+                <h3 className="font-bubble text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <Film className="h-5 w-5 text-rose-500" /> Featured & Updates
+                </h3>
+                {ads.length > 1 && (
+                    <span className="text-[11px] font-bold text-slate-500 bg-white px-2.5 py-0.5 rounded-full border">
+                        {currentIndex + 1} / {ads.length} • Swipe for next
+                    </span>
+                )}
+            </div>
+
+            <div 
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                className="relative rounded-3xl overflow-hidden bg-black shadow-soft-card border border-slate-200 select-none"
+            >
+                <div className="relative pb-[56.25%] h-0 bg-black">
+                    {ytId ? (
+                        <div id={containerId} className="absolute inset-0 w-full h-full pointer-events-none"></div>
+                    ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-white text-xs font-bold">
+                            Invalid Video Link
+                        </div>
+                    )}
+                    <div className="absolute inset-0 z-10"></div>
+                </div>
+
+                <div className="absolute top-3 left-3 right-3 z-20 flex items-center justify-between pointer-events-none">
+                    <span className="bg-rose-600/90 backdrop-blur-md text-white text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shadow">
+                        {currentAd?.title || "Featured Video"}
+                    </span>
+                    <button 
+                        onClick={toggleMute}
+                        className="pointer-events-auto bg-black/60 hover:bg-black/80 text-white p-2 rounded-full backdrop-blur-md transition border border-white/20"
+                        title={isMuted ? "Unmute" : "Mute"}
+                    >
+                        {isMuted ? <VolumeX className="h-4 w-4 text-rose-400" /> : <Volume2 className="h-4 w-4 text-emerald-400" />}
+                    </button>
+                </div>
+
+                {ads.length > 1 && (
+                    <div className="absolute bottom-3 right-3 z-20 flex items-center gap-2">
+                        <button onClick={goToPrev} className="bg-black/60 hover:bg-black/80 text-white p-2 rounded-xl backdrop-blur-md border border-white/10 transition">
+                            <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <button onClick={goToNext} className="bg-black/60 hover:bg-black/80 text-white px-3 py-1.5 rounded-xl backdrop-blur-md border border-white/10 text-[11px] font-bold flex items-center gap-1 transition">
+                            <span>Next</span> <SkipForward className="h-3.5 w-3.5" />
+                        </button>
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -257,16 +532,16 @@ const CustomVideoPlayer = ({ video, allVideos, onSelectVideo, onBack }) => {
                     </div>
                 </div>
                 <div className="lg:col-span-1 bg-white rounded-3xl p-5 border border-indigo-100 shadow-soft-card space-y-4">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100"><div className="flex items-center gap-2 font-black text-sm text-slate-900"><span className="w-1.5 h-4 bg-brand-600 rounded-full"></span><span>Course Playlist</span></div></div>
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100"><div className="flex items-center gap-2 font-black text-sm text-slate-900"><span className="w-1.5 h-4 bg-brand-600 rounded-full"></span><span>Course Playlist (Newest First)</span></div></div>
                     <div className="space-y-2.5 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
-                        {allVideos.map((item, idx) => {
+                        {allVideos.map((item) => {
                             const isCurrent = item.id === video.id;
                             const itemYtId = getYouTubeId(item.link);
                             const itemThumb = itemYtId ? `https://img.youtube.com/vi/${itemYtId}/hqdefault.jpg` : "https://via.placeholder.com/120x80";
                             return (
                                 <div key={item.id} onClick={() => onSelectVideo(item)} className={`flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer transition border ${isCurrent ? "bg-indigo-50/80 border-indigo-300" : "bg-white hover:bg-slate-50 border-slate-100"}`}>
                                     <div className="relative w-16 h-12 rounded-xl overflow-hidden bg-slate-900 shrink-0"><img src={itemThumb} alt="" className="w-full h-full object-cover" /></div>
-                                    <div className="flex-1 min-w-0"><h4 className={`text-xs font-extrabold truncate ${isCurrent ? "text-brand-700" : "text-slate-800"}`}>{idx + 1}. {item.title}</h4></div>
+                                    <div className="flex-1 min-w-0"><h4 className={`text-xs font-extrabold truncate ${isCurrent ? "text-brand-700" : "text-slate-800"}`}>{item.title}</h4></div>
                                 </div>
                             );
                         })}
@@ -279,10 +554,13 @@ const CustomVideoPlayer = ({ video, allVideos, onSelectVideo, onBack }) => {
 
 function App() {
     const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
+    const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
     const [currentView, setCurrentView] = useState("home");
     const [toast, setToast] = useState({ message: "", type: "" });
     const [showTopMenu, setShowTopMenu] = useState(false);
+
+    /* Student Dashboard Sub-tabs: 'home_tab' vs 'courses_tab' */
+    const [studentSubTab, setStudentSubTab] = useState("home_tab");
 
     /* Auth States */
     const [authMode, setAuthMode] = useState("login");
@@ -322,6 +600,20 @@ function App() {
     const [callRequests, setCallRequests] = useState([]);
     const [teacherPassRequests, setTeacherPassRequests] = useState([]);
     const [refundRequests, setRefundRequests] = useState([]);
+
+    /* Home Page & Banner Data States */
+    const [marqueeText, setMarqueeText] = useState("");
+    const [marqueeInput, setMarqueeInput] = useState("");
+    const [posters, setPosters] = useState([]);
+    const [newPoster, setNewPoster] = useState({ image: "", caption: "" });
+    const [adVideos, setAdVideos] = useState([]);
+    const [newAdVideo, setNewAdVideo] = useState({ title: "", link: "" });
+
+    /* New: Faculty Profiles & Toppers/Student Results States */
+    const [facultyList, setFacultyList] = useState([]);
+    const [newFaculty, setNewFaculty] = useState({ name: "", subject: "", photo: "" });
+    const [toppersList, setToppersList] = useState([]);
+    const [newTopper, setNewTopper] = useState({ name: "", studentClass: "Class 10", marks: "", percentage: "", photo: "" });
 
     /* Builders */
     const [newCourse, setNewCourse] = useState({ title: "", thumbnail: "", price: "", upiId: "", upiScanner: "", contactNumber: "" });
@@ -384,32 +676,63 @@ function App() {
         if (showAiBot && aiChatEndRef.current) aiChatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }, [comments, activeVideo, showTeacherChat, directMessages, selectedChatStudent, aiMessages, showAiBot]);
 
+    // Firebase Auth & Connection Check
     useEffect(() => {
-        if (!auth) { setLoading(false); return; }
-        const unsub = onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
-        signInAnonymously(auth).catch(err => console.error(err));
+        if (!auth) {
+            setIsFirebaseConnected(true);
+            return;
+        }
+        const unsub = onAuthStateChanged(auth, (u) => {
+            if (u) {
+                setUser(u);
+                setIsFirebaseConnected(true);
+            }
+        });
+        signInAnonymously(auth).catch(err => {
+            console.error(err);
+            setIsFirebaseConnected(true);
+        });
         return () => unsub();
     }, []);
 
     useEffect(() => {
         if (!user || !db) return;
         const unsubs = [];
+
+        const sortNewestFirst = (docs) => docs.sort((a, b) => (b.timestamp?.toMillis?.() || 0) - (a.timestamp?.toMillis?.() || 0));
+
         const cols = [
-            { path: "courses", setter: setCourses },
-            { path: "enrollments", setter: setEnrollments },
-            { path: "course_folders", setter: setCourseFolders },
-            { path: "course_contents", setter: setCourseContents },
-            { path: "tests", setter: setTests },
-            { path: "test_results", setter: setTestResults },
-            { path: "call_requests", setter: setCallRequests },
-            { path: "teacher_password_requests", setter: setTeacherPassRequests },
-            { path: "refund_requests", setter: setRefundRequests }
+            { path: "courses", setter: setCourses, sort: true },
+            { path: "enrollments", setter: setEnrollments, sort: true },
+            { path: "course_folders", setter: setCourseFolders, sort: true },
+            { path: "course_contents", setter: setCourseContents, sort: true },
+            { path: "tests", setter: setTests, sort: true },
+            { path: "test_results", setter: setTestResults, sort: true },
+            { path: "call_requests", setter: setCallRequests, sort: true },
+            { path: "teacher_password_requests", setter: setTeacherPassRequests, sort: true },
+            { path: "refund_requests", setter: setRefundRequests, sort: true },
+            { path: "home_posters", setter: setPosters, sort: true },
+            { path: "home_ad_videos", setter: setAdVideos, sort: true },
+            { path: "home_faculty", setter: setFacultyList, sort: true },
+            { path: "home_toppers", setter: setToppersList, sort: true }
         ];
 
         cols.forEach(c => {
             const ref = collection(db, "artifacts", appId, "public", "data", c.path);
-            unsubs.push(onSnapshot(ref, snap => c.setter(snap.docs.map(d => ({ id: d.id, ...d.data() })))));
+            unsubs.push(onSnapshot(ref, snap => {
+                const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+                c.setter(c.sort ? sortNewestFirst(items) : items);
+            }));
         });
+
+        const marqueeDocRef = doc(db, "artifacts", appId, "public", "data", "site_settings", "marquee");
+        unsubs.push(onSnapshot(marqueeDocRef, snap => {
+            if (snap.exists()) {
+                const txt = snap.data().text || "";
+                setMarqueeText(txt);
+                setMarqueeInput(prev => prev === "" ? txt : prev);
+            }
+        }));
 
         const commRef = collection(db, "artifacts", appId, "public", "data", "comments");
         unsubs.push(onSnapshot(commRef, snap => { setComments(snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (a.timestamp?.toMillis?.() || 0) - (b.timestamp?.toMillis?.() || 0))); }));
@@ -431,20 +754,192 @@ function App() {
         return () => unsubs.forEach(fn => fn());
     }, [user, loggedInStudentMobile]);
 
+    /* Generic Image Compression Helper */
+    const compressImageFile = (file, maxWidth, quality, callback) => {
+        if (!file || !file.type.startsWith("image/")) {
+            showToast("Sirf image file select karein!", "error");
+            return;
+        }
+        setUploadingImage(true);
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const scale = Math.min(1, maxWidth / img.width);
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                callback(canvas.toDataURL("image/jpeg", quality));
+                setUploadingImage(false);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    /* Marquee, Poster & Ad Video Handlers */
+    const handleSaveMarquee = async (e) => {
+        e.preventDefault();
+        if (!db) return;
+        setIsSubmitting(true);
+        try {
+            await setDoc(doc(db, "artifacts", appId, "public", "data", "site_settings", "marquee"), {
+                text: marqueeInput.trim(),
+                updatedAt: serverTimestamp()
+            });
+            showToast("Marquee Text Updated!");
+        } catch (err) {
+            showToast("Error saving marquee: " + err.message, "error");
+        }
+        setIsSubmitting(false);
+    };
+
+    const handlePosterImageSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        compressImageFile(file, 900, 0.75, (dataUrl) => setNewPoster(prev => ({ ...prev, image: dataUrl })));
+    };
+
+    const handleUploadPoster = async (e) => {
+        e.preventDefault();
+        if (!db || !newPoster.image) return showToast("Pehle gallery se photo select karein!", "error");
+        setIsSubmitting(true);
+        try {
+            await addDoc(collection(db, "artifacts", appId, "public", "data", "home_posters"), {
+                image: newPoster.image,
+                caption: newPoster.caption.trim(),
+                timestamp: serverTimestamp()
+            });
+            setNewPoster({ image: "", caption: "" });
+            showToast("Poster Photo Uploaded!");
+        } catch (err) {
+            showToast("Upload error: " + err.message, "error");
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleDeletePoster = async (id) => {
+        if (!db) return;
+        try {
+            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "home_posters", id));
+            showToast("Poster deleted!");
+        } catch (err) { showToast("Error deleting poster", "error"); }
+    };
+
+    const handleAddAdVideo = async (e) => {
+        e.preventDefault();
+        if (!db || !newAdVideo.link.trim()) return;
+        if (!getYouTubeId(newAdVideo.link)) return showToast("Valid YouTube link dalein!", "error");
+        setIsSubmitting(true);
+        try {
+            await addDoc(collection(db, "artifacts", appId, "public", "data", "home_ad_videos"), {
+                title: newAdVideo.title.trim() || "Featured Update",
+                link: newAdVideo.link.trim(),
+                timestamp: serverTimestamp()
+            });
+            setNewAdVideo({ title: "", link: "" });
+            showToast("Advertisement Video Added!");
+        } catch (err) {
+            showToast("Error: " + err.message, "error");
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleDeleteAdVideo = async (id) => {
+        if (!db) return;
+        try {
+            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "home_ad_videos", id));
+            showToast("Video deleted!");
+        } catch (err) { showToast("Error deleting video", "error"); }
+    };
+
+    /* NEW: Faculty Profile Handlers */
+    const handleFacultyPhotoSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        compressImageFile(file, 400, 0.75, (dataUrl) => setNewFaculty(prev => ({ ...prev, photo: dataUrl })));
+    };
+
+    const handleAddFaculty = async (e) => {
+        e.preventDefault();
+        if (!db || !newFaculty.name.trim() || !newFaculty.subject.trim()) return showToast("Teacher ka naam aur subject dalein!", "error");
+        setIsSubmitting(true);
+        try {
+            await addDoc(collection(db, "artifacts", appId, "public", "data", "home_faculty"), {
+                name: newFaculty.name.trim(),
+                subject: newFaculty.subject.trim(),
+                photo: newFaculty.photo || "",
+                timestamp: serverTimestamp()
+            });
+            setNewFaculty({ name: "", subject: "", photo: "" });
+            showToast("Teacher Profile Added to Home Page!");
+        } catch (err) {
+            showToast("Error adding teacher: " + err.message, "error");
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleDeleteFaculty = async (id) => {
+        if (!db) return;
+        try {
+            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "home_faculty", id));
+            showToast("Teacher profile deleted!");
+        } catch (err) { showToast("Error deleting teacher", "error"); }
+    };
+
+    /* NEW: Toppers / Student Results Handlers */
+    const handleTopperPhotoSelect = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        compressImageFile(file, 400, 0.75, (dataUrl) => setNewTopper(prev => ({ ...prev, photo: dataUrl })));
+    };
+
+    const handleAddTopper = async (e) => {
+        e.preventDefault();
+        if (!db || !newTopper.name.trim() || !newTopper.marks.trim() || !newTopper.percentage.trim()) {
+            return showToast("Student ka naam, marks aur percentage dalein!", "error");
+        }
+        setIsSubmitting(true);
+        try {
+            await addDoc(collection(db, "artifacts", appId, "public", "data", "home_toppers"), {
+                name: newTopper.name.trim(),
+                studentClass: newTopper.studentClass,
+                marks: newTopper.marks.trim(),
+                percentage: newTopper.percentage.trim(),
+                photo: newTopper.photo || "",
+                timestamp: serverTimestamp()
+            });
+            setNewTopper({ name: "", studentClass: "Class 10", marks: "", percentage: "", photo: "" });
+            showToast("Student Result Added to Home Page!");
+        } catch (err) {
+            showToast("Error adding result: " + err.message, "error");
+        }
+        setIsSubmitting(false);
+    };
+
+    const handleDeleteTopper = async (id) => {
+        if (!db) return;
+        try {
+            await deleteDoc(doc(db, "artifacts", appId, "public", "data", "home_toppers", id));
+            showToast("Student result deleted!");
+        } catch (err) { showToast("Error deleting result", "error"); }
+    };
+
     const handleStudentLogin = async (e) => {
         e.preventDefault();
         if (!db) return;
         setIsSubmitting(true);
         
-        // PlayStore Demo Logic
         if (mobile === DEMO_MOBILE && password === DEMO_PASS) {
             localStorage.setItem("ssz_student_session", DEMO_MOBILE); setLoggedInStudentMobile(DEMO_MOBILE);
-            // Auto create dummy profile if not exists
             const authDoc = await getDoc(doc(db, "artifacts", appId, "public", "data", "students_auth", DEMO_MOBILE));
             if(!authDoc.exists()){
                 await setDoc(doc(db, "artifacts", appId, "public", "data", "students_auth", DEMO_MOBILE), { password: DEMO_PASS, mobile: DEMO_MOBILE, timestamp: serverTimestamp() });
                 await setDoc(doc(db, "artifacts", appId, "public", "data", "students", DEMO_MOBILE), { mobile: DEMO_MOBILE, name: "Demo User", email: "demo@playstore.com", fatherName: "Demo Father", studentClass: "Class 10", timestamp: serverTimestamp() });
             }
+            setStudentSubTab("home_tab");
             setCurrentView("student_dashboard"); showToast("Demo Login Successful!");
             setIsSubmitting(false);
             return;
@@ -454,6 +949,7 @@ function App() {
             const authDoc = await getDoc(doc(db, "artifacts", appId, "public", "data", "students_auth", mobile));
             if (authDoc.exists() && authDoc.data().password === password) {
                 localStorage.setItem("ssz_student_session", mobile); setLoggedInStudentMobile(mobile);
+                setStudentSubTab("home_tab");
                 setCurrentView("student_dashboard"); showToast("Welcome Back! Login safal raha.");
             } else showToast("Mobile number ya password galat hai.", "error");
         } catch (err) { showToast("Error: " + err.message, "error"); }
@@ -463,14 +959,11 @@ function App() {
     const handleSendOtp = (e) => {
         e.preventDefault();
         if (!/^\d{10}$/.test(mobile)) { showToast("Valid 10-digit number dalein.", "error"); return; }
-        
-        // Demo Bypass
         if (mobile === DEMO_MOBILE) {
             setGeneratedOtp(DEMO_OTP);
             setCurrentView("verify_otp"); showToast("Demo OTP Generated for PlayStore testing.");
             return;
         }
-
         setGeneratedOtp(Math.floor(1000 + Math.random() * 9000).toString());
         setCurrentView("verify_otp"); showToast("Demo OTP generate ho gaya!");
     };
@@ -491,6 +984,7 @@ function App() {
             await setDoc(doc(db, "artifacts", appId, "public", "data", "students_auth", mobile), { password: studentDetails.newPassword || password, mobile, timestamp: serverTimestamp() });
             await setDoc(doc(db, "artifacts", appId, "public", "data", "students", mobile), { mobile, name: studentDetails.name, email: studentDetails.email || "", fatherName: studentDetails.fatherName, studentClass: studentDetails.studentClass, timestamp: serverTimestamp() });
             localStorage.setItem("ssz_student_session", mobile); setLoggedInStudentMobile(mobile); setStudentDetails(prev => ({ ...prev, newPassword: "" }));
+            setStudentSubTab("home_tab");
             setCurrentView("student_dashboard"); showToast("Account Ban Gaya!");
         } catch (err) { showToast("Registration error: " + err.message, "error"); }
         setIsSubmitting(false);
@@ -576,20 +1070,9 @@ function App() {
     };
 
     const handleImageUpload = (e, fieldName) => {
-        const file = e.target.files?.[0]; if (!file || !file.type.startsWith("image/")) return showToast("Sirf image upload karein!", "error");
-        setUploadingImage(true);
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement("canvas"); const scale = Math.min(1, 700 / img.width);
-                canvas.width = img.width * scale; canvas.height = img.height * scale;
-                const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                setNewCourse(prev => ({ ...prev, [fieldName]: canvas.toDataURL("image/jpeg", 0.65) })); setUploadingImage(false);
-            };
-            img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+        const file = e.target.files?.[0];
+        if (!file) return;
+        compressImageFile(file, 700, 0.65, (dataUrl) => setNewCourse(prev => ({ ...prev, [fieldName]: dataUrl })));
     };
 
     const handlePdfUpload = (e) => {
@@ -760,6 +1243,7 @@ function App() {
             } else {
                 await addDoc(collection(db, "artifacts", appId, "public", "data", "enrollments"), { courseId: selectedCourse.id, courseName: selectedCourse.title, studentId: loggedInStudentMobile, studentName: studentDetails.name || "Student", studentMobile: loggedInStudentMobile, studentClass: studentDetails.studentClass || "N/A", status: "pending", timestamp: serverTimestamp() });
             }
+            setStudentSubTab("courses_tab");
             setCurrentView("student_dashboard"); showToast("Payment request bhej di gayi hai!");
         } catch (err) { showToast("Error: " + err.message, "error"); }
         setIsSubmitting(false);
@@ -845,19 +1329,38 @@ function App() {
 
     /* Computed Variables */
     const getEnrollment = (courseId) => enrollments.find(e => e.courseId === courseId && e.studentId === loggedInStudentMobile);
-    const getEnrollmentStatus = (courseId) => getEnrollment(courseId)?.status;
     
     const currentFolders = courseFolders.filter(f => f.courseId === activeCourseId);
     const currentContents = courseContents.filter(c => c.courseId === activeCourseId && (activeFolderId ? c.folderId === activeFolderId : true));
     const currentTests = tests.filter(t => t.courseId === activeCourseId);
     const unreadAnnouncementsCount = broadcasts.filter(b => (b.timestamp?.toMillis?.() || Date.now()) > lastSeenBell).length;
     
-    // Group DMs for teacher
     const teacherChatList = [...new Set(directMessages.map(m => m.studentId))].map(id => {
         const msgs = directMessages.filter(m => m.studentId === id);
         const unreadCount = msgs.filter(m => m.sender === 'student' && !m.readByTeacher).length;
         return { studentId: id, studentName: msgs[0]?.studentName || id, lastMsg: msgs[msgs.length - 1], unreadCount };
     });
+
+    // Firebase Connection Loading Overlay for Student & Teacher Portals
+    if (!isFirebaseConnected && (currentView.includes("student") || currentView.includes("teacher") || loggedInStudentMobile || isTeacherLoggedIn)) {
+        return (
+            <div className="fixed inset-0 z-[9999] bg-gradient-to-br from-portal-blue via-indigo-700 to-slate-900 flex flex-col items-center justify-center text-white p-6 select-none">
+                <div className="relative flex items-center justify-center mb-6">
+                    <div className="w-24 h-24 rounded-full border-4 border-white/20 border-t-yellow-300 animate-spin"></div>
+                    <img 
+                        src="https://i.ibb.co/hQYN4PR/IMG-20261004-WA0017.jpg" 
+                        alt="Logo" 
+                        className="w-16 h-16 rounded-full object-cover absolute border-2 border-white shadow-lg bg-white" 
+                    />
+                </div>
+                <h2 className="font-bubble text-2xl font-bold tracking-wide text-center">Sheriya Study Zone</h2>
+                <p className="text-xs sm:text-sm text-indigo-200 font-semibold mt-2 flex items-center gap-2 animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+                    Server se connect ho raha hai, kripya pratiksha karein...
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#f6f8fd]">
@@ -873,7 +1376,7 @@ function App() {
             <header className="bg-portal-blue text-white shadow-md z-50 shrink-0 relative print-hide">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16 sm:h-20">
-                        <div onClick={() => { if (isTeacherLoggedIn) setCurrentView("teacher_dashboard"); else if (loggedInStudentMobile) setCurrentView("student_dashboard"); else setCurrentView("home"); setShowTopMenu(false); }} className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none">
+                        <div onClick={() => { if (isTeacherLoggedIn) setCurrentView("teacher_dashboard"); else if (loggedInStudentMobile) { setStudentSubTab("home_tab"); setCurrentView("student_dashboard"); } else setCurrentView("home"); setShowTopMenu(false); }} className="flex items-center gap-2.5 sm:gap-3 cursor-pointer select-none">
                             <img src="https://i.ibb.co/hQYN4PR/IMG-20261004-WA0017.jpg" alt="Sheriya Study Zone Logo" className="h-10 w-10 sm:h-12 sm:w-12 rounded-full border-2 border-white object-cover shadow-sm bg-white shrink-0" />
                             <div><h1 className="font-bubble text-xl sm:text-2xl font-bold tracking-tight leading-none text-white">Sheriya <span className="text-yellow-300">Study Zone</span></h1><p className="text-[10px] sm:text-xs text-indigo-100 font-medium tracking-wide">Padhega Bihar, Badhega Bihar</p></div>
                         </div>
@@ -970,15 +1473,12 @@ function App() {
                             <button onClick={() => setCurrentView("home")} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Wapas</button>
                             
                             <div className="flex flex-col md:flex-row items-center justify-center gap-10 bg-white rounded-3xl p-6 sm:p-10 shadow-soft-card border border-orange-100">
-                                
-                                {/* Left Side: Text and Download Button */}
                                 <div className="flex-1 text-center md:text-left space-y-6">
                                     <img src="https://i.ibb.co/hQYN4PR/IMG-20261004-WA0017.jpg" alt="Logo" className="h-20 w-20 rounded-2xl shadow-lg mx-auto md:mx-0 object-cover bg-white border border-slate-100" />
                                     <h2 className="font-bubble text-3xl sm:text-4xl font-bold text-slate-900">App Download Karein</h2>
                                     <p className="text-sm text-slate-600 font-medium leading-relaxed max-w-md mx-auto md:mx-0">
                                         Sheriya Study Zone ka official Android app download karein aur apni padhai ko aur bhi behtar banayein. Saath diye gaye screen par instructions dekh kar install karein.
                                     </p>
-                                    
                                     <div className="pt-2">
                                         <a 
                                             href="Sheriya_Study_Zone_v3.0_1791509777046.apk" 
@@ -992,17 +1492,14 @@ function App() {
                                     <p className="text-[10px] text-slate-400 font-semibold mt-4">Version 3.0 | For Android Devices Only</p>
                                 </div>
 
-                                {/* Right Side: Animated Phone Mockup */}
                                 <div className="shrink-0 w-full md:w-auto flex justify-center pt-8 md:pt-0">
                                     <div className="phone-mockup">
                                         <div className="phone-notch"></div>
                                         <div className="w-full h-full bg-slate-50 pt-10 pb-4 px-4 flex flex-col relative overflow-hidden">
-                                            
                                             <div className="text-center mb-4 shrink-0">
                                                 <img src="https://i.ibb.co/hQYN4PR/IMG-20261004-WA0017.jpg" alt="Sheriya" className="w-12 h-12 rounded-full mx-auto shadow-sm mb-2 bg-white object-cover border border-slate-200" />
                                                 <h3 className="text-sm font-bold text-portal-blue">Installation Guide</h3>
                                             </div>
-                                            
                                             <div className="space-y-4 flex-1 overflow-y-auto scrollbar-hide pb-10">
                                                 <div className="instruction-item bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex items-start gap-3" style={{animationDelay: '0.4s'}}>
                                                     <div className="w-6 h-6 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center font-bold text-xs shrink-0">1</div>
@@ -1025,7 +1522,6 @@ function App() {
                                                     <p className="text-[11px] text-slate-700 font-semibold mt-0.5"><strong>Install</strong> par tap karein aur app open karke padhai shuru karein!</p>
                                                 </div>
                                             </div>
-                                            
                                             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-1/3 h-1 bg-slate-300 rounded-full"></div>
                                         </div>
                                     </div>
@@ -1036,7 +1532,7 @@ function App() {
 
                     {currentView === "about_us" && (
                         <div className="max-w-2xl mx-auto w-full animate-fade-in space-y-6 print-hide">
-                            <button onClick={() => setCurrentView("home")} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Wapas</button>
+                            <button onClick={() => setCurrentView(loggedInStudentMobile ? "student_dashboard" : isTeacherLoggedIn ? "teacher_dashboard" : "home")} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Wapas</button>
                             
                             <div className="bg-white rounded-3xl p-8 shadow-soft-card border border-indigo-50 text-center space-y-4">
                                 <img src="https://i.ibb.co/hQYN4PR/IMG-20261004-WA0017.jpg" alt="Sheriya Study Zone" className="w-24 h-24 rounded-full mx-auto shadow-lg border-4 border-indigo-50 object-cover bg-white" />
@@ -1060,7 +1556,7 @@ function App() {
 
                     {currentView === "privacy_policy" && (
                         <div className="max-w-3xl mx-auto w-full animate-fade-in space-y-6 print-hide">
-                            <button onClick={() => setCurrentView("home")} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Wapas</button>
+                            <button onClick={() => setCurrentView(loggedInStudentMobile ? "student_dashboard" : isTeacherLoggedIn ? "teacher_dashboard" : "home")} className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-800"><ArrowLeft className="h-4 w-4" /> Wapas</button>
                             <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-soft-card border border-indigo-50 space-y-6">
                                 <h2 className="font-bubble text-2xl font-bold flex items-center gap-2 border-b pb-3"><ShieldCheck className="h-6 w-6 text-portal-blue"/> Privacy Policy & Refund</h2>
                                 
@@ -1193,45 +1689,179 @@ function App() {
                         </div>
                     )}
 
+                    {/* STUDENT DASHBOARD WITH HOME PAGE (Posters, Ad Videos, Teachers, Toppers) + COURSES TAB */}
                     {currentView === "student_dashboard" && (
-                        <div className="max-w-5xl mx-auto w-full space-y-6 animate-fade-in print-hide">
-                            <div className="bg-white rounded-3xl p-6 border border-indigo-50 shadow-soft-card flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl shrink-0">👋</div>
-                                <div><h2 className="font-bubble text-xl sm:text-2xl font-bold">Namaste, {studentDetails.name || "Student"}!</h2><p className="text-xs text-slate-400 font-medium">Apne available courses dekhein.</p></div>
+                        <div className="max-w-5xl mx-auto w-full space-y-5 animate-fade-in print-hide">
+                            
+                            {/* Left to Right Animated Marquee Banner */}
+                            {marqueeText && (
+                                <div className="w-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-slate-900 rounded-2xl py-2.5 overflow-hidden shadow-sm border border-amber-500/30 relative flex items-center">
+                                    <div className="animate-marquee-ltr font-extrabold text-xs sm:text-sm tracking-wide flex items-center gap-2">
+                                        <Megaphone className="h-4 w-4 text-rose-600 inline shrink-0" />
+                                        <span>{marqueeText}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Student Portal Navigation Tabs (Home vs Courses) */}
+                            <div className="flex bg-white p-1.5 rounded-2xl border border-indigo-100 shadow-sm gap-2">
+                                <button 
+                                    onClick={() => setStudentSubTab("home_tab")} 
+                                    className={`flex-1 py-2.5 text-xs sm:text-sm font-bubble font-bold rounded-xl transition flex items-center justify-center gap-2 ${studentSubTab === "home_tab" ? "bg-portal-blue text-white shadow-md" : "text-slate-600 hover:bg-slate-50"}`}
+                                >
+                                    <Home className="h-4 w-4" /> <span>Home</span>
+                                </button>
+                                <button 
+                                    onClick={() => setStudentSubTab("courses_tab")} 
+                                    className={`flex-1 py-2.5 text-xs sm:text-sm font-bubble font-bold rounded-xl transition flex items-center justify-center gap-2 ${studentSubTab === "courses_tab" ? "bg-portal-blue text-white shadow-md" : "text-slate-600 hover:bg-slate-50"}`}
+                                >
+                                    <BookOpen className="h-4 w-4" /> <span>Courses ({courses.length})</span>
+                                </button>
                             </div>
 
-                            <div className="space-y-4">
-                                <h3 className="font-bubble text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-portal-blue" /> Available Courses</h3>
-                                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    {courses.map(course => {
-                                        const enrollment = getEnrollment(course.id);
-                                        const status = enrollment?.status;
-                                        return (
-                                            <div key={course.id} className="bg-white rounded-3xl border border-slate-200 shadow-soft-card overflow-hidden flex flex-col justify-between hover:border-portal-blue transition group">
-                                                <div className="relative w-full h-44 bg-slate-100"><img src={course.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition" /></div>
-                                                <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
-                                                    <div><h4 className="font-bubble text-base font-bold text-slate-900 line-clamp-2">{course.title}</h4><p className="font-bubble text-xl font-bold text-portal-blue mt-1">₹{course.price}</p></div>
-                                                    <div className="pt-2 flex flex-col gap-2">
-                                                        {(!status || status === "refunded") && <button onClick={() => { setSelectedCourse(course); setCurrentView("payment_page"); }} className="w-full bg-portal-blue text-white font-bold py-3 rounded-2xl text-xs shadow-md">Batch Join Karein</button>}
-                                                        {status === "refunded" && <p className="text-[10px] text-center font-bold text-rose-500">Refund Processed - Access Locked</p>}
-                                                        {status === "pending" && <div className="w-full bg-amber-50 text-amber-700 font-bold py-2.5 rounded-2xl text-xs text-center flex items-center justify-center gap-1.5"><Clock className="h-4 w-4 animate-spin"/> Approval Pending</div>}
-                                                        {status === "approved" && (
-                                                            <>
-                                                                <button onClick={() => { setActiveCourseId(course.id); setContentTab("classes"); setCurrentView("student_course_view"); }} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-2xl text-xs flex justify-center items-center gap-2"><BookOpen className="h-4 w-4" /> Open Course</button>
-                                                                <div className="grid grid-cols-2 gap-2 mt-1">
-                                                                    <button onClick={() => { setActiveEnrollment(enrollment); setCurrentView("receipt_view"); }} className="bg-slate-100 text-slate-700 font-bold py-2 rounded-xl text-[10px] flex justify-center items-center gap-1 hover:bg-slate-200"><Receipt className="h-3 w-3"/> Receipt</button>
-                                                                    <button onClick={() => { setActiveEnrollment({ ...enrollment, courseName: course.title }); setRefundForm({...refundForm, receiptId: "", reason: "", upiId: "", password: ""}); setCurrentView("refund_form"); }} className="bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-[10px] flex justify-center items-center gap-1 hover:bg-rose-100 border border-rose-100"><RotateCcw className="h-3 w-3"/> Refund</button>
-                                                                </div>
-                                                            </>
+                            {/* STUDENT HOME PAGE */}
+                            {studentSubTab === "home_tab" && (
+                                <div className="space-y-6 animate-fade-in">
+                                    {/* Welcome Strip */}
+                                    <div className="bg-white rounded-3xl p-4 sm:p-5 border border-indigo-50 shadow-soft-card flex items-center justify-between gap-4">
+                                        <div className="flex items-center gap-3.5">
+                                            <div className="w-12 h-12 rounded-2xl bg-indigo-50 flex items-center justify-center text-xl shrink-0">👋</div>
+                                            <div>
+                                                <h2 className="font-bubble text-lg sm:text-xl font-bold text-slate-900">Namaste, {studentDetails.name || "Student"}!</h2>
+                                                <p className="text-[11px] sm:text-xs text-slate-400 font-semibold">{studentDetails.studentClass || "Student"} • Sheriya Study Zone</p>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => setStudentSubTab("courses_tab")} 
+                                            className="bg-portal-blue hover:bg-portal-darkblue text-white text-xs font-bold px-4 py-2.5 rounded-2xl shadow-glow-purple flex items-center gap-1.5 shrink-0 transition"
+                                        >
+                                            <span>My Courses</span> <ChevronRight className="h-4 w-4" />
+                                        </button>
+                                    </div>
+
+                                    {/* Poster Frame (Auto-slide + 10s pause on touch) */}
+                                    <PosterCarousel posters={posters} />
+
+                                    {/* Advertisement Video Player (Auto-play, Muted, Swipeable, Loop) */}
+                                    <AdVideoCarousel ads={adVideos} />
+
+                                    {/* NEW: Our Expert Teachers Section */}
+                                    {facultyList.length > 0 && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between px-1">
+                                                <h3 className="font-bubble text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                    <Users className="h-5 w-5 text-portal-blue" /> Hamare Shikshak (Our Teachers)
+                                                </h3>
+                                                <span className="text-[11px] font-bold text-slate-400">{facultyList.length} Faculty</span>
+                                            </div>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
+                                                {facultyList.map(teacher => (
+                                                    <div key={teacher.id} className="bg-white rounded-3xl p-4 border border-indigo-50 shadow-soft-card text-center space-y-2.5 hover:border-portal-blue transition">
+                                                        {teacher.photo ? (
+                                                            <img src={teacher.photo} alt={teacher.name} className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover mx-auto border-2 border-indigo-100 shadow-sm" />
+                                                        ) : (
+                                                            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-50 text-portal-blue flex items-center justify-center mx-auto font-bubble text-2xl font-bold border-2 border-indigo-100">
+                                                                {teacher.name.charAt(0).toUpperCase()}
+                                                            </div>
                                                         )}
+                                                        <div>
+                                                            <h4 className="font-bubble text-sm sm:text-base font-bold text-slate-900 line-clamp-1">{teacher.name}</h4>
+                                                            <span className="inline-block mt-1 bg-indigo-50 text-portal-blue text-[10px] sm:text-xs font-extrabold px-3 py-0.5 rounded-full border border-indigo-100">
+                                                                {teacher.subject}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* NEW: Star Students / Toppers Results Section */}
+                                    {toppersList.length > 0 && (
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between px-1">
+                                                <h3 className="font-bubble text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                                                    <Award className="h-5 w-5 text-amber-500" /> Toppers & Student Results
+                                                </h3>
+                                                <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-200">
+                                                    Proud Achievers
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                                {toppersList.map(topper => (
+                                                    <div key={topper.id} className="bg-gradient-to-br from-white via-white to-amber-50/60 rounded-3xl p-4 border border-amber-100 shadow-soft-card flex items-center gap-3.5 hover:border-amber-300 transition">
+                                                        {topper.photo ? (
+                                                            <img src={topper.photo} alt={topper.name} className="w-16 h-16 rounded-2xl object-cover shrink-0 border-2 border-amber-200 shadow-sm" />
+                                                        ) : (
+                                                            <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 font-bubble text-2xl font-bold border-2 border-amber-200">
+                                                                {topper.name.charAt(0).toUpperCase()}
+                                                            </div>
+                                                        )}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center justify-between gap-1">
+                                                                <h4 className="font-bubble text-sm sm:text-base font-bold text-slate-900 truncate">{topper.name}</h4>
+                                                                <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 shadow-sm">
+                                                                    {topper.percentage}%
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[11px] font-bold text-portal-blue mt-0.5">{topper.studentClass}</p>
+                                                            <div className="mt-1.5 inline-flex items-center gap-1 bg-amber-100/80 text-amber-900 text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg">
+                                                                <Award className="h-3 w-3 text-amber-600" /> Marks: {topper.marks}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Quick Access to Courses if Home Page is empty */}
+                                    {posters.length === 0 && adVideos.length === 0 && facultyList.length === 0 && toppersList.length === 0 && (
+                                        <div className="bg-white rounded-3xl p-8 text-center border border-indigo-50 shadow-soft-card space-y-3">
+                                            <GraduationCap className="h-12 w-12 text-portal-blue mx-auto opacity-80" />
+                                            <h3 className="font-bubble text-lg font-bold text-slate-800">Apni Padhai Shuru Karein</h3>
+                                            <p className="text-xs text-slate-500 max-w-sm mx-auto">Sabhi batches aur study material dekhne ke liye Courses tab par click karein.</p>
+                                            <button onClick={() => setStudentSubTab("courses_tab")} className="bg-portal-blue text-white text-xs font-bold px-6 py-3 rounded-2xl shadow-md">Explore Courses</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* COURSES TAB */}
+                            {studentSubTab === "courses_tab" && (
+                                <div className="space-y-4 animate-fade-in">
+                                    <h3 className="font-bubble text-lg font-bold flex items-center gap-2"><BookOpen className="h-5 w-5 text-portal-blue" /> Available Courses</h3>
+                                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {courses.map(course => {
+                                            const enrollment = getEnrollment(course.id);
+                                            const status = enrollment?.status;
+                                            return (
+                                                <div key={course.id} className="bg-white rounded-3xl border border-slate-200 shadow-soft-card overflow-hidden flex flex-col justify-between hover:border-portal-blue transition group">
+                                                    <div className="relative w-full h-44 bg-slate-100"><img src={course.thumbnail} alt="" className="w-full h-full object-cover group-hover:scale-105 transition" /></div>
+                                                    <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
+                                                        <div><h4 className="font-bubble text-base font-bold text-slate-900 line-clamp-2">{course.title}</h4><p className="font-bubble text-xl font-bold text-portal-blue mt-1">₹{course.price}</p></div>
+                                                        <div className="pt-2 flex flex-col gap-2">
+                                                            {(!status || status === "refunded") && <button onClick={() => { setSelectedCourse(course); setCurrentView("payment_page"); }} className="w-full bg-portal-blue text-white font-bold py-3 rounded-2xl text-xs shadow-md">Batch Join Karein</button>}
+                                                            {status === "refunded" && <p className="text-[10px] text-center font-bold text-rose-500">Refund Processed - Access Locked</p>}
+                                                            {status === "pending" && <div className="w-full bg-amber-50 text-amber-700 font-bold py-2.5 rounded-2xl text-xs text-center flex items-center justify-center gap-1.5"><Clock className="h-4 w-4 animate-spin"/> Approval Pending</div>}
+                                                            {status === "approved" && (
+                                                                <>
+                                                                    <button onClick={() => { setActiveCourseId(course.id); setContentTab("classes"); setCurrentView("student_course_view"); }} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-2xl text-xs flex justify-center items-center gap-2"><BookOpen className="h-4 w-4" /> Open Course</button>
+                                                                    <div className="grid grid-cols-2 gap-2 mt-1">
+                                                                        <button onClick={() => { setActiveEnrollment(enrollment); setCurrentView("receipt_view"); }} className="bg-slate-100 text-slate-700 font-bold py-2 rounded-xl text-[10px] flex justify-center items-center gap-1 hover:bg-slate-200"><Receipt className="h-3 w-3"/> Receipt</button>
+                                                                        <button onClick={() => { setActiveEnrollment({ ...enrollment, courseName: course.title }); setRefundForm({...refundForm, receiptId: "", reason: "", upiId: "", password: ""}); setCurrentView("refund_form"); }} className="bg-rose-50 text-rose-600 font-bold py-2 rounded-xl text-[10px] flex justify-center items-center gap-1 hover:bg-rose-100 border border-rose-100"><RotateCcw className="h-3 w-3"/> Refund</button>
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {courses.length === 0 && <div className="col-span-full bg-white rounded-3xl p-12 text-center border-2 border-dashed border-slate-200"><p className="text-slate-500 font-bold text-sm">Koi course uplabdh nahi hai.</p></div>}
+                                            );
+                                        })}
+                                        {courses.length === 0 && <div className="col-span-full bg-white rounded-3xl p-12 text-center border-2 border-dashed border-slate-200"><p className="text-slate-500 font-bold text-sm">Koi course uplabdh nahi hai.</p></div>}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     )}
 
@@ -1352,11 +1982,16 @@ function App() {
 
                                         {(contentTab === "classes" || contentTab === "live") && (
                                             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                                                {currentContents.filter(c => c.type === (contentTab === "classes" ? "class" : "live")).map(item => {
+                                                {currentContents.filter(c => c.type === (contentTab === "classes" ? "class" : "live")).map((item, idx) => {
                                                     const ytId = getYouTubeId(item.link); const thumbUrl = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : "https://via.placeholder.com/320x180?text=Video";
                                                     return (
                                                         <div key={item.id} onClick={() => { setActiveVideo(item); setCurrentView("student_video_player"); }} className="border rounded-3xl overflow-hidden bg-white cursor-pointer group hover:border-portal-blue transition">
-                                                            <div className="relative aspect-video bg-black"><img src={thumbUrl} className="w-full h-full object-cover group-hover:scale-105 transition" /><div className="absolute inset-0 bg-black/30 flex items-center justify-center"><div className="w-14 h-14 rounded-full bg-portal-blue text-white flex items-center justify-center"><Play className="h-6 w-6 ml-1 fill-white" /></div></div>{item.type === "live" && <span className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex gap-1"><Radio className="h-3 w-3 animate-pulse"/> LIVE</span>}</div>
+                                                            <div className="relative aspect-video bg-black">
+                                                                <img src={thumbUrl} className="w-full h-full object-cover group-hover:scale-105 transition" />
+                                                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center"><div className="w-14 h-14 rounded-full bg-portal-blue text-white flex items-center justify-center"><Play className="h-6 w-6 ml-1 fill-white" /></div></div>
+                                                                {idx === 0 && <span className="absolute top-2 right-2 bg-emerald-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full shadow">NEW</span>}
+                                                                {item.type === "live" && <span className="absolute top-2 left-2 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex gap-1"><Radio className="h-3 w-3 animate-pulse"/> LIVE</span>}
+                                                            </div>
                                                             <div className="p-4"><span className="text-[10px] font-extrabold uppercase bg-indigo-50 text-portal-blue px-2 py-0.5 rounded">{item.subject}</span><h4 className="font-bubble text-sm font-bold mt-1 line-clamp-2">{item.title}</h4></div>
                                                         </div>
                                                     );
@@ -1499,24 +2134,286 @@ function App() {
                         </div>
                     )}
 
-                    {}
+                    {/* TEACHER DASHBOARD */}
                     {currentView === "teacher_dashboard" && (
                         <div className="max-w-6xl mx-auto w-full space-y-6 animate-fade-in print-hide">
                             <div className="bg-slate-900 rounded-3xl p-6 text-white shadow-soft-card flex flex-col md:flex-row items-center justify-between gap-4">
                                 <div><span className="text-[10px] font-bold uppercase text-emerald-400 bg-emerald-950 px-3 py-1 rounded-full border border-emerald-800">Teacher Control Center</span><h2 className="font-bubble text-2xl font-bold mt-2">Sheriya Study Zone Faculty</h2></div>
                                 <div className="flex bg-slate-800 p-1.5 rounded-2xl border border-slate-700 flex-wrap gap-1">
-                                    {['courses', 'enrollments', 'refunds', 'comments', 'announcements', 'messages', 'staff'].map(tab => {
+                                    {['courses', 'home_banners', 'enrollments', 'refunds', 'comments', 'announcements', 'messages', 'staff'].map(tab => {
+                                        let label = tab === 'home_banners' ? 'Home & Ads' : tab;
                                         let extra = "";
                                         if(tab==='enrollments') extra = ` (${enrollments.filter(e=>e.status==='pending').length})`;
                                         if(tab==='refunds') extra = ` (${refundRequests.filter(r=>r.status==='pending').length})`;
                                         if(tab==='staff') extra = ` (${teacherPassRequests.filter(r=>r.status==='pending').length})`;
                                         return (
                                         <button key={tab} onClick={() => setTeacherTab(tab)} className={`px-3 py-2 rounded-xl text-xs font-bold transition capitalize ${teacherTab === tab ? "bg-emerald-600 text-white shadow" : "text-slate-400 hover:text-white"}`}>
-                                            {tab} {extra}
+                                            {label} {extra}
                                         </button>
                                     )})}
                                 </div>
                             </div>
+
+                            {/* Teacher Home & Ads Control Tab (Marquee, Poster Frame, Ad Videos, Teachers, Toppers) */}
+                            {teacherTab === "home_banners" && (
+                                <div className="space-y-6 animate-fade-in">
+                                    {/* Marquee Text Manager */}
+                                    <div className="bg-white rounded-3xl p-6 border shadow-soft-card space-y-4">
+                                        <h3 className="font-bubble text-base font-bold border-b pb-2 flex items-center gap-2 text-slate-800">
+                                            <Megaphone className="h-5 w-5 text-amber-500" /> Student Portal Marquee Banner (Left to Right Slide)
+                                        </h3>
+                                        <form onSubmit={handleSaveMarquee} className="flex flex-col sm:flex-row gap-3">
+                                            <input 
+                                                type="text" 
+                                                value={marqueeInput} 
+                                                onChange={e => setMarqueeInput(e.target.value)} 
+                                                className="flex-1 border border-slate-200 focus:border-emerald-500 rounded-xl py-2.5 px-4 text-xs sm:text-sm font-semibold outline-none" 
+                                                placeholder="Marquee text likhein (Khali chhod kar save karne par banner hat jayega)..." 
+                                            />
+                                            <button type="submit" disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-2.5 rounded-xl text-xs transition shrink-0">
+                                                Save Marquee
+                                            </button>
+                                        </form>
+                                    </div>
+
+                                    {/* NEW: Faculty Profile & Toppers/Results Upload Section */}
+                                    <div className="grid lg:grid-cols-2 gap-6">
+                                        {/* Teacher Profile Uploader (Name, Subject, Photo) */}
+                                        <div className="bg-white rounded-3xl p-6 border shadow-soft-card space-y-4">
+                                            <h3 className="font-bubble text-base font-bold border-b pb-2 flex items-center gap-2 text-slate-800">
+                                                <Users className="h-5 w-5 text-portal-blue" /> Add Teacher Profile (Home Page)
+                                            </h3>
+                                            <form onSubmit={handleAddFaculty} className="space-y-3">
+                                                <input 
+                                                    type="text" 
+                                                    required 
+                                                    value={newFaculty.name} 
+                                                    onChange={e => setNewFaculty(prev => ({ ...prev, name: e.target.value }))} 
+                                                    className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-portal-blue" 
+                                                    placeholder="Teacher Ka Naam (e.g. Pawan Sir)" 
+                                                />
+                                                <input 
+                                                    type="text" 
+                                                    required 
+                                                    value={newFaculty.subject} 
+                                                    onChange={e => setNewFaculty(prev => ({ ...prev, subject: e.target.value }))} 
+                                                    className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-portal-blue" 
+                                                    placeholder="Subject (e.g. Mathematics & Science)" 
+                                                />
+                                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-3 text-center bg-slate-50">
+                                                    <span className="text-[11px] font-bold text-slate-600 block mb-1">Teacher Photo (Optional)</span>
+                                                    <input type="file" accept="image/*" onChange={handleFacultyPhotoSelect} className="text-xs w-full" />
+                                                    {newFaculty.photo && <img src={newFaculty.photo} alt="Preview" className="w-16 h-16 rounded-full object-cover mx-auto mt-2 border shadow-sm" />}
+                                                </div>
+                                                <button type="submit" disabled={isSubmitting || uploadingImage} className="w-full bg-portal-blue hover:bg-portal-darkblue text-white font-bold py-3 rounded-xl text-xs disabled:opacity-50 transition">
+                                                    Add Teacher to Home Page
+                                                </button>
+                                            </form>
+
+                                            {/* Uploaded Faculty List */}
+                                            <div className="pt-3 border-t space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                                <span className="text-[11px] font-bold text-slate-400 uppercase block">Listed Teachers ({facultyList.length})</span>
+                                                {facultyList.map((f, idx) => (
+                                                    <div key={f.id} className="flex items-center justify-between gap-3 p-2.5 bg-slate-50 rounded-2xl border">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            {f.photo ? (
+                                                                <img src={f.photo} alt="" className="w-10 h-10 rounded-full object-cover shrink-0 border" />
+                                                            ) : (
+                                                                <div className="w-10 h-10 rounded-full bg-indigo-100 text-portal-blue flex items-center justify-center font-bold text-xs shrink-0">{f.name.charAt(0)}</div>
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <p className="text-xs font-bold text-slate-800 truncate">{f.name}</p>
+                                                                    {idx === 0 && <span className="text-[8px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">NEW</span>}
+                                                                </div>
+                                                                <p className="text-[11px] font-semibold text-portal-blue truncate">{f.subject}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleDeleteFaculty(f.id)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl shrink-0"><Trash2 className="h-4 w-4" /></button>
+                                                    </div>
+                                                ))}
+                                                {facultyList.length === 0 && <p className="text-center text-xs text-slate-400 py-3 font-bold">Abhi koi teacher profile add nahi hai.</p>}
+                                            </div>
+                                        </div>
+
+                                        {/* Student Result / Topper Uploader (Name, Class, Marks, Percentage, Photo) */}
+                                        <div className="bg-white rounded-3xl p-6 border shadow-soft-card space-y-4">
+                                            <h3 className="font-bubble text-base font-bold border-b pb-2 flex items-center gap-2 text-slate-800">
+                                                <Award className="h-5 w-5 text-amber-500" /> Add Student Result / Topper (Home Page)
+                                            </h3>
+                                            <form onSubmit={handleAddTopper} className="space-y-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={newTopper.name} 
+                                                        onChange={e => setNewTopper(prev => ({ ...prev, name: e.target.value }))} 
+                                                        className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-amber-500" 
+                                                        placeholder="Student Ka Naam" 
+                                                    />
+                                                    <select 
+                                                        value={newTopper.studentClass} 
+                                                        onChange={e => setNewTopper(prev => ({ ...prev, studentClass: e.target.value }))} 
+                                                        className="w-full border rounded-xl py-2.5 px-3 text-xs font-bold outline-none focus:border-amber-500 bg-white"
+                                                    >
+                                                        <option value="Class 8">Class 8</option>
+                                                        <option value="Class 9">Class 9</option>
+                                                        <option value="Class 10">Class 10</option>
+                                                        <option value="Class 11">Class 11</option>
+                                                        <option value="Class 12">Class 12</option>
+                                                        <option value="Competitive Exams">Competitive Exams</option>
+                                                    </select>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2.5">
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={newTopper.marks} 
+                                                        onChange={e => setNewTopper(prev => ({ ...prev, marks: e.target.value }))} 
+                                                        className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-amber-500" 
+                                                        placeholder="Marks (e.g. 465 / 500)" 
+                                                    />
+                                                    <input 
+                                                        type="text" 
+                                                        required 
+                                                        value={newTopper.percentage} 
+                                                        onChange={e => setNewTopper(prev => ({ ...prev, percentage: e.target.value.replace('%', '') }))} 
+                                                        className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-amber-500" 
+                                                        placeholder="Percentage (e.g. 93)" 
+                                                    />
+                                                </div>
+                                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-3 text-center bg-slate-50">
+                                                    <span className="text-[11px] font-bold text-slate-600 block mb-1">Student Photo (Optional)</span>
+                                                    <input type="file" accept="image/*" onChange={handleTopperPhotoSelect} className="text-xs w-full" />
+                                                    {newTopper.photo && <img src={newTopper.photo} alt="Preview" className="w-16 h-16 rounded-2xl object-cover mx-auto mt-2 border shadow-sm" />}
+                                                </div>
+                                                <button type="submit" disabled={isSubmitting || uploadingImage} className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl text-xs disabled:opacity-50 transition">
+                                                    Publish Student Result
+                                                </button>
+                                            </form>
+
+                                            {/* Uploaded Toppers List */}
+                                            <div className="pt-3 border-t space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                                                <span className="text-[11px] font-bold text-slate-400 uppercase block">Published Results ({toppersList.length})</span>
+                                                {toppersList.map((t, idx) => (
+                                                    <div key={t.id} className="flex items-center justify-between gap-3 p-2.5 bg-slate-50 rounded-2xl border">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            {t.photo ? (
+                                                                <img src={t.photo} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0 border" />
+                                                            ) : (
+                                                                <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">{t.name.charAt(0)}</div>
+                                                            )}
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <p className="text-xs font-bold text-slate-800 truncate">{t.name}</p>
+                                                                    <span className="text-[9px] font-extrabold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">{t.percentage}%</span>
+                                                                </div>
+                                                                <p className="text-[10px] font-semibold text-slate-500 truncate">{t.studentClass} • Marks: {t.marks}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleDeleteTopper(t.id)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl shrink-0"><Trash2 className="h-4 w-4" /></button>
+                                                    </div>
+                                                ))}
+                                                {toppersList.length === 0 && <p className="text-center text-xs text-slate-400 py-3 font-bold">Abhi koi student result upload nahi hai.</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Existing Poster Frame & Advertisement Video Uploaders */}
+                                    <div className="grid lg:grid-cols-2 gap-6">
+                                        {/* Poster Frame Uploader */}
+                                        <div className="bg-white rounded-3xl p-6 border shadow-soft-card space-y-4">
+                                            <h3 className="font-bubble text-base font-bold border-b pb-2 flex items-center gap-2 text-slate-800">
+                                                <ImageIcon className="h-5 w-5 text-portal-blue" /> Home Page Poster Frame (Gallery Upload)
+                                            </h3>
+                                            <form onSubmit={handleUploadPoster} className="space-y-3">
+                                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 text-center bg-slate-50">
+                                                    <span className="text-xs font-bold text-slate-600 block mb-1.5">Gallery se Poster Photo Chunein</span>
+                                                    <input type="file" accept="image/*" onChange={handlePosterImageSelect} className="text-xs w-full" />
+                                                    {uploadingImage && <p className="text-[11px] text-portal-blue font-bold mt-2 animate-pulse">Image compress ho rahi hai...</p>}
+                                                    {newPoster.image && <img src={newPoster.image} alt="Preview" className="w-full h-32 object-cover rounded-xl mt-3 border shadow-sm" />}
+                                                </div>
+                                                <input 
+                                                    type="text" 
+                                                    value={newPoster.caption} 
+                                                    onChange={e => setNewPoster(prev => ({ ...prev, caption: e.target.value }))} 
+                                                    className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-portal-blue" 
+                                                    placeholder="Poster Caption / Title (Optional)" 
+                                                />
+                                                <button type="submit" disabled={isSubmitting || uploadingImage || !newPoster.image} className="w-full bg-portal-blue hover:bg-portal-darkblue text-white font-bold py-3 rounded-xl text-xs disabled:opacity-50 transition">
+                                                    Upload Poster to Home Page
+                                                </button>
+                                            </form>
+
+                                            <div className="pt-3 border-t space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                                                <span className="text-[11px] font-bold text-slate-400 uppercase block">Active Posters ({posters.length}) - Newest First</span>
+                                                {posters.map((p, idx) => (
+                                                    <div key={p.id} className="flex items-center justify-between gap-3 p-2.5 bg-slate-50 rounded-2xl border">
+                                                        <div className="flex items-center gap-3 min-w-0">
+                                                            <img src={p.image} alt="" className="w-16 h-11 rounded-xl object-cover shrink-0 border" />
+                                                            <div className="min-w-0">
+                                                                {idx === 0 && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">NEW</span>}
+                                                                <p className="text-xs font-bold text-slate-800 truncate">{p.caption || "Banner Poster"}</p>
+                                                            </div>
+                                                        </div>
+                                                        <button onClick={() => handleDeletePoster(p.id)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl shrink-0"><Trash2 className="h-4 w-4" /></button>
+                                                    </div>
+                                                ))}
+                                                {posters.length === 0 && <p className="text-center text-xs text-slate-400 py-4 font-bold">Abhi koi poster upload nahi hai.</p>}
+                                            </div>
+                                        </div>
+
+                                        {/* Advertisement Video Player Manager */}
+                                        <div className="bg-white rounded-3xl p-6 border shadow-soft-card space-y-4">
+                                            <h3 className="font-bubble text-base font-bold border-b pb-2 flex items-center gap-2 text-slate-800">
+                                                <Film className="h-5 w-5 text-rose-500" /> Home Page Advertisement Videos (YouTube)
+                                            </h3>
+                                            <form onSubmit={handleAddAdVideo} className="space-y-3">
+                                                <input 
+                                                    type="text" 
+                                                    value={newAdVideo.title} 
+                                                    onChange={e => setNewAdVideo(prev => ({ ...prev, title: e.target.value }))} 
+                                                    className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-rose-500" 
+                                                    placeholder="Video Title (e.g., New Batch Promo)" 
+                                                />
+                                                <input 
+                                                    type="url" 
+                                                    required 
+                                                    value={newAdVideo.link} 
+                                                    onChange={e => setNewAdVideo(prev => ({ ...prev, link: e.target.value }))} 
+                                                    className="w-full border rounded-xl py-2.5 px-3 text-xs font-semibold outline-none focus:border-rose-500" 
+                                                    placeholder="YouTube Video Link paste karein..." 
+                                                />
+                                                <button type="submit" disabled={isSubmitting} className="w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 rounded-xl text-xs disabled:opacity-50 transition">
+                                                    Add Video to Home Player
+                                                </button>
+                                            </form>
+
+                                            <div className="pt-3 border-t space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar pr-1">
+                                                <span className="text-[11px] font-bold text-slate-400 uppercase block">Active Ad Videos ({adVideos.length}) - Newest First</span>
+                                                {adVideos.map((ad, idx) => {
+                                                    const ytId = getYouTubeId(ad.link);
+                                                    const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/hqdefault.jpg` : "https://via.placeholder.com/120x80";
+                                                    return (
+                                                        <div key={ad.id} className="flex items-center justify-between gap-3 p-2.5 bg-slate-50 rounded-2xl border">
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <img src={thumb} alt="" className="w-16 h-11 rounded-xl object-cover shrink-0 border bg-black" />
+                                                                <div className="min-w-0">
+                                                                    {idx === 0 && <span className="text-[9px] font-bold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">NEW</span>}
+                                                                    <p className="text-xs font-bold text-slate-800 truncate">{ad.title}</p>
+                                                                    <p className="text-[10px] text-slate-400 truncate">{ad.link}</p>
+                                                                </div>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteAdVideo(ad.id)} className="p-2 text-rose-500 hover:bg-rose-100 rounded-xl shrink-0"><Trash2 className="h-4 w-4" /></button>
+                                                        </div>
+                                                    );
+                                                })}
+                                                {adVideos.length === 0 && <p className="text-center text-xs text-slate-400 py-4 font-bold">Abhi koi ad video add nahi hai.</p>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             {teacherTab === "courses" && (
                                 <div className="grid lg:grid-cols-3 gap-6">
@@ -1533,7 +2430,7 @@ function App() {
                                         </form>
                                     </div>
                                     <div className="lg:col-span-2 space-y-4">
-                                        <h3 className="font-bubble text-base font-bold text-slate-900">Active Courses</h3>
+                                        <h3 className="font-bubble text-base font-bold text-slate-900">Active Courses (Newest First)</h3>
                                         <div className="grid sm:grid-cols-2 gap-4">
                                             {courses.map(course => (
                                                 <div key={course.id} className="bg-white rounded-3xl p-4 border shadow-soft-card flex flex-col justify-between">
@@ -1682,7 +2579,6 @@ function App() {
 
                             {teacherTab === "messages" && (
                                 <div className="bg-white rounded-3xl border shadow-soft-card flex flex-col md:grid md:grid-cols-3 h-[80vh] min-h-[500px] max-h-[700px] overflow-hidden">
-                                    {/* Sidebar */}
                                     <div className={`border-r bg-slate-50 flex-col h-full ${selectedChatStudent ? 'hidden md:flex' : 'flex'}`}>
                                         <div className="p-4 border-b bg-white"><h3 className="font-bubble font-bold">Student Messages</h3></div>
                                         <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
@@ -1698,7 +2594,6 @@ function App() {
                                             {teacherChatList.length === 0 && <p className="text-center py-10 text-xs text-slate-400">No chats yet.</p>}
                                         </div>
                                     </div>
-                                    {/* Chat Area */}
                                     <div className={`md:col-span-2 flex-col h-full bg-white ${selectedChatStudent ? 'flex' : 'hidden md:flex'}`}>
                                         {selectedChatStudent ? (
                                             <>
@@ -1825,12 +2720,15 @@ function App() {
                                             </form>
                                         </div>
                                         <div className="bg-white p-6 rounded-3xl border shadow-soft-card space-y-4">
-                                            <h3 className="font-bubble text-sm font-bold border-b pb-2">Uploaded Files {newContent.folderId ? "in Selected Folder" : "(All Folders)"}</h3>
+                                            <h3 className="font-bubble text-sm font-bold border-b pb-2">Uploaded Files (Newest First) {newContent.folderId ? "in Selected Folder" : "(All Folders)"}</h3>
                                             <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
-                                                {courseContents.filter(c => c.courseId === activeCourseId && (!newContent.folderId || c.folderId === newContent.folderId)).map(item => (
+                                                {courseContents.filter(c => c.courseId === activeCourseId && (!newContent.folderId || c.folderId === newContent.folderId)).map((item, idx) => (
                                                     <div key={item.id} className="p-3 bg-slate-50 rounded-xl border flex items-center justify-between gap-3 group hover:border-portal-blue transition">
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="flex gap-2 mb-1"><span className="text-[10px] font-bold bg-indigo-100 text-portal-blue px-2 py-0.5 rounded uppercase">{item.type}</span></div>
+                                                            <div className="flex gap-2 mb-1">
+                                                                <span className="text-[10px] font-bold bg-indigo-100 text-portal-blue px-2 py-0.5 rounded uppercase">{item.type}</span>
+                                                                {idx === 0 && <span className="text-[9px] font-extrabold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded uppercase">NEW</span>}
+                                                            </div>
                                                             <h4 className="text-xs font-bold truncate text-slate-800">{item.title}</h4>
                                                         </div>
                                                         <button onClick={() => handleDeleteContent(item.id)} className="text-rose-500 hover:bg-rose-100 p-2 rounded-xl transition"><Trash2 className="h-4 w-4"/></button>
@@ -1978,3 +2876,4 @@ root.render(<App />);
 </script>
 </body>
 </html>
+
