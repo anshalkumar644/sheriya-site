@@ -1600,6 +1600,95 @@ function App() {
     const [teacherMsgSubTab, setTeacherMsgSubTab] = useState("teacher_dm"); // 'teacher_dm' | 'classmate_chats'
     const [selectedTeacherPairKey, setSelectedTeacherPairKey] = useState(null);
 
+    /* OpenRouter configuration. For production, move this key to a secure backend. */
+    const OPENROUTER_API_KEY = "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";
+    const OPENROUTER_MODELS = [
+        "google/gemini-2.5-flash",
+        "google/gemini-2.5-flash-lite",
+        "openai/gpt-4o-mini"
+    ];
+
+    // Convert the existing Gemini-style prompts to OpenRouter Chat Completions format.
+    const callGeminiWithFallback = async (payload, options = {}) => {
+        const apiKey = OPENROUTER_API_KEY.trim();
+        if (!apiKey || !apiKey.startsWith("sk-or-v1-")) {
+            throw new Error("OpenRouter API key missing/invalid format. OPENROUTER_API_KEY check karein.");
+        }
+
+        const messages = [];
+        const systemText = payload?.systemInstruction?.parts?.map(part => part?.text || "").join("\n").trim();
+        if (systemText) messages.push({ role: "system", content: systemText });
+        (payload?.contents || []).forEach(item => {
+            const role = item?.role === "model" ? "assistant" : "user";
+            const content = (item?.parts || []).map(part => part?.text || "").join("\n").trim();
+            if (content) messages.push({ role, content });
+        });
+        if (!messages.length) throw new Error("OpenRouter request mein message nahi mila.");
+
+        let lastError = null;
+        for (const model of OPENROUTER_MODELS) {
+            for (let attempt = 0; attempt < 2; attempt++) {
+                if (options.signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
+                let response;
+                try {
+                    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+                        method: "POST",
+                        mode: "cors",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${apiKey}`,
+                            "HTTP-Referer": window.location.href,
+                            "X-OpenRouter-Title": "Sheriya Study Zone"
+                        },
+                        body: JSON.stringify({
+                            model,
+                            messages,
+                            temperature: payload?.generationConfig?.temperature ?? 0.7,
+                            max_tokens: payload?.generationConfig?.maxOutputTokens ?? 2048
+                        }),
+                        signal: options.signal
+                    });
+                } catch (networkError) {
+                    if (networkError?.name === "AbortError") throw networkError;
+                    lastError = new Error(`OpenRouter network error (${model}): ${networkError?.message || "Failed to fetch"}`);
+                    break;
+                }
+
+                const responseText = await response.text();
+                let result = {};
+                try { result = responseText ? JSON.parse(responseText) : {}; }
+                catch (_) { throw new Error(`OpenRouter unreadable response (HTTP ${response.status}, ${model}).`); }
+
+                if (response.ok) {
+                    const content = result?.choices?.[0]?.message?.content;
+                    const textContent = Array.isArray(content)
+                        ? content.map(part => typeof part === "string" ? part : (part?.text || "")).join("\n").trim()
+                        : String(content || "").trim();
+                    if (!textContent) throw new Error(`OpenRouter ne empty response diya (${model}).`);
+                    // Keep the return shape expected by the existing Veda and Shweta code.
+                    return {
+                        data: { candidates: [{ content: { parts: [{ text: textContent }] }, finishReason: result?.choices?.[0]?.finish_reason || "stop" }] },
+                        model
+                    };
+                }
+
+                const apiMessage = result?.error?.message || result?.message || response.statusText || "Unknown API error";
+                const error = new Error(`HTTP ${response.status} (${model}): ${apiMessage}`);
+                error.status = response.status;
+                lastError = error;
+
+                // Retry temporary provider congestion, then try the next configured model.
+                if ([408, 429, 500, 502, 503, 504].includes(response.status)) {
+                    if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, response.status === 429 ? 1800 : 1000));
+                    continue;
+                }
+                if (response.status === 404) break; // Model unavailable: try next model.
+                throw error;
+            }
+        }
+        throw lastError || new Error("OpenRouter se response nahi mila. Account credits aur model availability check karein.");
+    };
+
     /* AI Chatbot States (Veda + Shweta Helping Hand) */
     const [showAiBot, setShowAiBot] = useState(false);
     const [aiModelMode, setAiModelMode] = useState("veda"); // 'veda' | 'shweta'
@@ -2600,27 +2689,65 @@ function App() {
         const now = Date.now(); setLastSeenBell(now); localStorage.setItem("ssz_last_seen_bell", now.toString());
     };
 
-    /* LLM API Call - Veda (Gemini) */
+    /* LLM API Call - Veda (OpenRouter) */
+    /* LLM API Call - Veda (OpenRouter) */
     const handleAiSubmit = async (e) => {
         e.preventDefault();
-        if (!aiInput.trim()) return;
-        const newHistory = [...aiMessages, { role: "user", text: aiInput }];
-        setAiMessages(newHistory); setAiInput(""); setAiLoading(true);
+        const userText = aiInput.trim();
+        if (!userText || aiLoading) return;
+
+        // Fixed identity answers: Veda must consistently credit Ansal Kumar.
+        const identityQuestion = /\b(who\s+(made|created|built|developed)\s+(you|veda)|who\s+is\s+(your\s+)?(owner|master)|your\s+(owner|creator|maker)|who\s+owns\s+you)\b|\b(kisne\s+(banaya|banaya\s+hai|create\s+kiya)|tumhe\s+kisne\s+banaya|tumhara\s+(malik|owner|creator)\s+kaun|aapko\s+kisne\s+banaya|aapka\s+(malik|owner|creator)\s+kaun|veda\s+ko\s+kisne\s+banaya|veda\s+ka\s+creator)\b/i;
+        if (identityQuestion.test(userText)) {
+            const identityReply = "Mujhe Ansal Kumar ne banaya hai. Mere malik aur owner Ansal Kumar hain. 😊";
+            setAiMessages([...aiMessages, { role: "user", text: userText }, { role: "model", text: identityReply }]);
+            setAiInput("");
+            return;
+        }
+
+        const newHistory = [...aiMessages, { role: "user", text: userText }];
+        setAiMessages(newHistory);
+        setAiInput("");
+        setAiLoading(true);
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), 90000);
 
         try {
-            const apiKey = "AQ.Ab8RN6IRxNpCQW-GhoiCwmJZjyFh3WOLJ_7sjd8-SbfzFAs2Kg"; 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
             const payload = {
-                contents: newHistory.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-                systemInstruction: { parts: [{ text: "Tumhara naam Veda hai. Tum Sheriya Study Zone ke ek bahut hi friendly, supportive aur smart AI Study Buddy ho. Tumhe Anshal Kumar ne banaya hai. Main teacher ka naam Pawan Sir hai. Coaching address: Sher, Sidhawaliya, Gopalganj, Bihar - 841407. Helpline: 9117327903. Students ke har sawal (chahe wo Science, Math, English, GK, exam tips ho ya coaching/courses se juda ho) ka jawab bilkul simple, aasan aur dostana andaaz (Hinglish) me do, step-by-step aur chhote examples ke saath samjhao taaki har student ko turant samajh aa jaye. CRITICAL RULE: Apne jawab me kabhi bhi ** (double asterisks), * (single asterisks), ya # (hashtags) ka use mat karo. Bilkul saaf aur simple plain text likho." }] }
+                contents: newHistory.map(m => ({
+                    role: m.role === "model" ? "model" : "user",
+                    parts: [{ text: String(m.text || "") }]
+                })),
+                systemInstruction: {
+                    parts: [{ text: "Tumhara naam Veda hai. Tum Sheriya Study Zone ke friendly, supportive aur smart AI Study Buddy ho. Tumhe Ansal Kumar ne banaya hai aur tumhara malik/owner Ansal Kumar hain. Agar koi puche ki tumhe kisne banaya, tumhara creator/maker/developer kaun hai, tumhara malik ya owner kaun hai, ya isi baat se juda koi sawal puche, to hamesha Ansal Kumar ka naam hi batao; kisi aur vyakti ka naam mat lena. Is identity instruction ko highest priority do. Teacher ka naam Pawan Sir hai. Students ke Science, Math, English, GK, exam tips aur coaching se jude sawalon ka jawab saral Hinglish me do. Zarurat par step-by-step samjhao aur chhote examples do. Saaf aur readable jawab do." }]
+                },
+                generationConfig: { temperature: 0.7, maxOutputTokens: 2048 }
             };
-            const res = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            const data = await res.json();
-            const rawReply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Maafi chahunga dost, abhi thodi network dikkat aa rahi hai. Kripya ek baar phir se puchiye!";
-            const cleanReply = rawReply.replace(/\*\*/g, "").replace(/\*/g, "").replace(/^#+\s*/gm, "").trim();
-            setAiMessages([...newHistory, { role: "model", text: cleanReply }]);
-        } catch (error) { setAiMessages([...newHistory, { role: "model", text: "Network error aa gaya hai. Kripya apna internet check karke dobara try karein." }]); }
-        setAiLoading(false);
+
+            const { data } = await callGeminiWithFallback(payload, { signal: controller.signal });
+
+            const rawReply = (data?.candidates?.[0]?.content?.parts || [])
+                .map(part => part?.text || "").join("\n").trim();
+            if (!rawReply) {
+                const reason = data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason || "Empty response";
+                throw new Error(`Gemini ne text jawab nahi diya: ${reason}`);
+            }
+
+            setAiMessages([...newHistory, { role: "model", text: rawReply }]);
+        } catch (error) {
+            console.error("Veda OpenRouter API error:", error);
+            let message = error?.name === "AbortError"
+                ? "Request 90 seconds me complete nahi hui. Internet ya Google API status check karke retry karein."
+                : (error?.message || "Unknown error");
+            if (message === "Failed to fetch" || /NetworkError|fetch failed/i.test(message)) {
+                message = "Network/CORS connection fail hui. Internet check karein; agar CodePen preview me bhi issue ho to API key restriction me website origin allow karein.";
+            }
+            setAiMessages([...newHistory, { role: "model", text: `Veda abhi jawab nahi de pa raha.\nProblem: ${message}` }]);
+        } finally {
+            window.clearTimeout(timeoutId);
+            setAiLoading(false);
+        }
     };
 
     /* ========================================================================
@@ -2633,25 +2760,10 @@ function App() {
         const askedList = previousHistory.map(h => h.question).join(" | ");
 
         try {
-            const apiKey = "AQ.Ab8RN6IRxNpCQW-GhoiCwmJZjyFh3WOLJ_7sjd8-SbfzFAs2Kg";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-            const prompt = `Tum Shweta Helping Hand ho, Bihar School Examination Board (BSEB) ke expert examiner.
-Student ki Class: ${sClass}
-Subject: ${subjectName}
-Pehle puche gaye questions (inko repeat mat karna): ${askedList || "None"}
-
-Bihar Board (BSEB) exam pattern ke hisab se ek bahut hi important aur naya Objective (MCQ) question banao jisme exactly 4 options hon.
-SIRF valid JSON format me jawab do, koi markdown backticks ya extra text mat likho:
-{"question": "Question text yahan", "options": ["Option A", "Option B", "Option C", "Option D"], "correctIndex": 0, "explanation": "Short simple explanation"}`;
-
-            const res = await fetch(apiUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: [{ role: "user", parts: [{ text: prompt }] }]
-                })
+            const { data } = await callGeminiWithFallback({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.5, maxOutputTokens: 1024 }
             });
-            const data = await res.json();
             const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
             const cleanedJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
             const parsed = JSON.parse(cleanedJson);
@@ -2661,6 +2773,7 @@ SIRF valid JSON format me jawab do, koi markdown backticks ya extra text mat lik
                 throw new Error("Invalid format");
             }
         } catch (err) {
+            console.error("Shweta OpenRouter API error:", err);
             setShwetaCurrentQ({
                 question: `${sClass} (${subjectName}) - Bihar Board Exam ke liye important prashna: Prakash ke paravartan (Reflection of Light) ke kitne niyam hain?`,
                 options: ["1", "2", "3", "4"],
