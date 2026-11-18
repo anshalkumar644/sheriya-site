@@ -1599,20 +1599,19 @@ function App() {
     const [selectedChatStudent, setSelectedChatStudent] = useState(null);
     const [teacherMsgSubTab, setTeacherMsgSubTab] = useState("teacher_dm"); // 'teacher_dm' | 'classmate_chats'
     const [selectedTeacherPairKey, setSelectedTeacherPairKey] = useState(null);
-
-    /* OpenRouter configuration. For production, move this key to a secure backend. */
-    const OPENROUTER_API_KEY = "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";
+    /* OpenRouter requests go through the Cloudflare Worker.
+       Replace this URL with your deployed Worker URL before merging. */
+    const SHERIYA_AI_API_URL = "https://YOUR-WORKER-NAME.YOUR-SUBDOMAIN.workers.dev";
     const OPENROUTER_MODELS = [
         "google/gemini-2.5-flash",
         "google/gemini-2.5-flash-lite",
         "openai/gpt-4o-mini"
     ];
 
-    // Convert the existing Gemini-style prompts to OpenRouter Chat Completions format.
+    // Preserve the response shape expected by existing Veda and Shweta code.
     const callGeminiWithFallback = async (payload, options = {}) => {
-        const apiKey = OPENROUTER_API_KEY.trim();
-        if (!apiKey || !apiKey.startsWith("sk-or-v1-")) {
-            throw new Error("OpenRouter API key missing/invalid format. OPENROUTER_API_KEY check karein.");
+        if (!SHERIYA_AI_API_URL.startsWith("https://") || SHERIYA_AI_API_URL.includes("YOUR-WORKER-NAME")) {
+            throw new Error("AI backend configure nahi hai. Worker URL set karein.");
         }
 
         const messages = [];
@@ -1623,70 +1622,31 @@ function App() {
             const content = (item?.parts || []).map(part => part?.text || "").join("\n").trim();
             if (content) messages.push({ role, content });
         });
-        if (!messages.length) throw new Error("OpenRouter request mein message nahi mila.");
+        if (!messages.length) throw new Error("AI request mein message nahi mila.");
 
-        let lastError = null;
-        for (const model of OPENROUTER_MODELS) {
-            for (let attempt = 0; attempt < 2; attempt++) {
-                if (options.signal?.aborted) throw new DOMException("Request cancelled", "AbortError");
-                let response;
-                try {
-                    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                        method: "POST",
-                        mode: "cors",
-                        headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${apiKey}`,
-                            "HTTP-Referer": window.location.href,
-                            "X-OpenRouter-Title": "Sheriya Study Zone"
-                        },
-                        body: JSON.stringify({
-                            model,
-                            messages,
-                            temperature: payload?.generationConfig?.temperature ?? 0.7,
-                            max_tokens: payload?.generationConfig?.maxOutputTokens ?? 2048
-                        }),
-                        signal: options.signal
-                    });
-                } catch (networkError) {
-                    if (networkError?.name === "AbortError") throw networkError;
-                    lastError = new Error(`OpenRouter network error (${model}): ${networkError?.message || "Failed to fetch"}`);
-                    break;
-                }
+        const response = await fetch(SHERIYA_AI_API_URL.replace(/\/$/, "") + "/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messages,
+                temperature: payload?.generationConfig?.temperature ?? 0.7,
+                max_tokens: payload?.generationConfig?.maxOutputTokens ?? 2048
+            }),
+            signal: options.signal
+        });
 
-                const responseText = await response.text();
-                let result = {};
-                try { result = responseText ? JSON.parse(responseText) : {}; }
-                catch (_) { throw new Error(`OpenRouter unreadable response (HTTP ${response.status}, ${model}).`); }
-
-                if (response.ok) {
-                    const content = result?.choices?.[0]?.message?.content;
-                    const textContent = Array.isArray(content)
-                        ? content.map(part => typeof part === "string" ? part : (part?.text || "")).join("\n").trim()
-                        : String(content || "").trim();
-                    if (!textContent) throw new Error(`OpenRouter ne empty response diya (${model}).`);
-                    // Keep the return shape expected by the existing Veda and Shweta code.
-                    return {
-                        data: { candidates: [{ content: { parts: [{ text: textContent }] }, finishReason: result?.choices?.[0]?.finish_reason || "stop" }] },
-                        model
-                    };
-                }
-
-                const apiMessage = result?.error?.message || result?.message || response.statusText || "Unknown API error";
-                const error = new Error(`HTTP ${response.status} (${model}): ${apiMessage}`);
-                error.status = response.status;
-                lastError = error;
-
-                // Retry temporary provider congestion, then try the next configured model.
-                if ([408, 429, 500, 502, 503, 504].includes(response.status)) {
-                    if (attempt === 0) await new Promise(resolve => window.setTimeout(resolve, response.status === 429 ? 1800 : 1000));
-                    continue;
-                }
-                if (response.status === 404) break; // Model unavailable: try next model.
-                throw error;
-            }
+        let result = {};
+        try { result = await response.json(); }
+        catch (_) { throw new Error("AI backend ne unreadable response diya."); }
+        if (!response.ok) {
+            throw new Error(result?.error || `AI backend error (HTTP ${response.status}).`);
         }
-        throw lastError || new Error("OpenRouter se response nahi mila. Account credits aur model availability check karein.");
+        const textContent = String(result?.text || "").trim();
+        if (!textContent) throw new Error("AI backend se empty response mila.");
+        return {
+            data: { candidates: [{ content: { parts: [{ text: textContent }] }, finishReason: result?.finish_reason || "stop" }] },
+            model: result?.model || "openrouter"
+        };
     };
 
     /* AI Chatbot States (Veda + Shweta Helping Hand) */
